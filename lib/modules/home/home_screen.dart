@@ -1,0 +1,668 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/utils/constants.dart';
+import '../auth/login_screen.dart';
+import '../solicitudes_compra/solicitud_compra_auth_screen.dart';
+import 'widgets/module_card.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = context.watch<AuthService>();
+    final usuario = authService.usuario;
+    final nombreCompleto = usuario?.nombreCompleto ?? 'Usuario';
+    final primerNombre = nombreCompleto.split(' ').first;
+
+    // Determinar permisos (simulado - debe venir del backend)
+    final tienePermisoPresupuesto = true; // Cambiar según lógica real
+    final tienePermisoSolicitud = true;   // Cambiar según lógica real
+    final tieneAlgunPermiso = tienePermisoPresupuesto || tienePermisoSolicitud;
+    
+    // Contar pendientes (simulado - debe venir del backend)
+    final pendientesPresupuesto = 3;
+    final pendientesSolicitud = 5;
+    final totalPendientes = pendientesPresupuesto + pendientesSolicitud;
+
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: Color(AppColors.primaryColor),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          '👋 HOLA, $primerNombre',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          // Notificaciones con badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  // TODO: Navegar a Centro de Notificaciones
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Centro de Notificaciones - Próximamente')),
+                  );
+                },
+              ),
+              if (totalPendientes > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Color(AppColors.errorColor),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      '$totalPendientes',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Avatar de usuario
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () {
+                // TODO: Navegar a Perfil
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Mi Perfil - Próximamente')),
+                );
+              },
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  _getInitials(nombreCompleto),
+                  style: TextStyle(
+                    color: Color(AppColors.primaryColor),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      drawer: _buildDrawer(context, authService, tienePermisoPresupuesto, tienePermisoSolicitud),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Mensaje de autorizaciones pendientes - Diseño moderno tipo encabezado MD
+            if (tieneAlgunPermiso && totalPendientes > 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(AppColors.warningColor),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[800],
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: 'Tienes ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '$totalPendientes',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(AppColors.errorColor),
+                                fontSize: 16,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' autorizaciones pendientes',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Sección AUTORIZAR (solo si tiene algún permiso) - CON FRANJA
+            if (tieneAlgunPermiso)
+              _buildSectionWithBand(
+                title: 'AUTORIZAR',
+                backgroundColor: Colors.grey[50]!,
+                children: [
+                  if (tienePermisoPresupuesto)
+                    Expanded(
+                      child: ModuleCard(
+                        icon: Icons.emergency,
+                        title: 'Presupuesto\nEmergencia',
+                        pendingCount: pendientesPresupuesto,
+                        color: Color(AppColors.warningColor),
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Autorizar Presupuesto de Emergencia - Próximamente')),
+                          );
+                        },
+                      ),
+                    ),
+                  if (tienePermisoPresupuesto && tienePermisoSolicitud)
+                    const SizedBox(width: 12),
+                  if (tienePermisoSolicitud)
+                    Expanded(
+                      child: ModuleCard(
+                        icon: Icons.shopping_cart,
+                        title: 'Solicitud\nCompra',
+                        pendingCount: pendientesSolicitud,
+                        color: Color(AppColors.infoColor),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SolicitudCompraAuthScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            
+            // Espacio entre secciones con fondo del home
+            const SizedBox(height: 16),
+            
+            // Sección CONSULTAS (siempre visible) - CON FRANJA
+            _buildSectionWithBand(
+              title: 'CONSULTAS',
+              backgroundColor: Colors.grey[50]!,
+              children: [
+                Expanded(
+                  child: ModuleCard(
+                    icon: Icons.description_outlined,
+                    title: 'Ver\nPresupuesto\nEmergencia',
+                    subtitle: 'Ver (5)',
+                    color: const Color(0xFF9C27B0),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ver Presupuestos de Emergencia - Próximamente')),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ModuleCard(
+                    icon: Icons.shopping_bag_outlined,
+                    title: 'Ver\nSolicitud\nCompra',
+                    subtitle: 'Ver (3)',
+                    color: Color(AppColors.successColor),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ver Solicitudes de Compra - Próximamente')),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            
+            // Espacio final y última actualización
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+              
+                  const SizedBox(height: 24),
+              
+                  // Última actualización
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.refresh,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Última actualización: Ahora',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSectionHeader(String title) {
+    return Column(
+      children: [
+        // Línea delgada con degradado
+        Container(
+          height: 1,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(AppColors.primaryColor).withOpacity(0.2),
+                Color(AppColors.primaryColor),
+                Color(AppColors.primaryColor).withOpacity(0.2),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Título centrado en negro y bold
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+            letterSpacing: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Nuevo método para crear secciones con franja de color
+  Widget _buildSectionWithBand({
+    required String title,
+    required Color backgroundColor,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+      ),
+      child: Column(
+        children: [
+          // Línea superior con degradado
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.withOpacity(0.1),
+                  Colors.grey.withOpacity(0.4),
+                  Colors.grey.withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Título alineado a la derecha con padding
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Text(
+              title,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Cards en fila con padding horizontal
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: children,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Línea inferior con degradado
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.withOpacity(0.1),
+                  Colors.grey.withOpacity(0.4),
+                  Colors.grey.withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, AuthService authService, 
+      bool tienePermisoPresupuesto, bool tienePermisoSolicitud) {
+    final usuario = authService.usuario;
+    final nombreCompleto = usuario?.nombreCompleto ?? 'Usuario';
+    final webUser = usuario?.webUser ?? '';
+    final cargo = authService.cargo;
+    
+    return Drawer(
+      child: Column(
+        children: [
+          // Header del Drawer con información del usuario
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 20,
+              bottom: 20,
+              left: 20,
+              right: 20,
+            ),
+            decoration: BoxDecoration(
+              color: Color(AppColors.primaryColor),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    _getInitials(nombreCompleto),
+                    style: TextStyle(
+                      color: Color(AppColors.primaryColor),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    nombreCompleto,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Opciones del menú
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.home,
+                  title: 'Inicio',
+                  isSelected: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                const Divider(height: 1),
+
+                // Sección AUTORIZAR (solo si tiene algún permiso)
+                if (tienePermisoPresupuesto || tienePermisoSolicitud) ...[
+                  _buildDrawerSection('AUTORIZAR'),
+                  if (tienePermisoPresupuesto)
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.emergency,
+                      title: 'Autorizar Presupuesto\nde Emergencia',
+                      color: Color(AppColors.warningColor),
+                      onTap: () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Autorizar Presupuesto de Emergencia - Próximamente')),
+                        );
+                      },
+                    ),
+                  if (tienePermisoSolicitud)
+                    _buildDrawerItem(
+                      context,
+                      icon: Icons.shopping_cart,
+                      title: 'Autorizar Solicitud\nde Compra',
+                      color: Color(AppColors.infoColor),
+                      onTap: () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Autorizar Solicitud de Compra - Próximamente')),
+                        );
+                      },
+                    ),
+                  const Divider(height: 1),
+                ],
+
+                // Sección CONSULTAS (siempre visible)
+                _buildDrawerSection('CONSULTAS'),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.description_outlined,
+                  title: 'Ver Presupuestos de Emergencia',
+                  color: const Color(0xFF9C27B0),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ver Presupuestos de Emergencia - Próximamente')),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'Ver Solicitudes de Compra',
+                  color: Color(AppColors.successColor),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ver Solicitudes de Compra - Próximamente')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // Cerrar sesión al final
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.logout,
+                  title: 'Cerrar Sesión',
+                  color: Color(AppColors.errorColor),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLogoutDialog(context);
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'v1.0.0 • Build 23',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerSection(String title) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey[300]!,
+            width: 2,
+          ),
+        ),
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+          color: Colors.black87,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    Color? color,
+    bool isSelected = false,
+    required VoidCallback onTap,
+  }) {
+    // Si no se proporciona color, usar el color primario para seleccionado o gris para no seleccionado
+    final iconColor = color ?? (isSelected ? Color(AppColors.primaryColor) : Colors.grey[700]!);
+
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: iconColor,
+        size: 22,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? Color(AppColors.primaryColor) : Colors.grey[800],
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: Color(AppColors.primaryColor).withOpacity(0.1),
+      onTap: onTap,
+    );
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      return parts[0][0].toUpperCase();
+    }
+    return 'U';
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Está seguro que desea cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final authService = context.read<AuthService>();
+              await authService.logout();
+              if (context.mounted) {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(AppColors.errorColor),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
+    );
+  }
+}
