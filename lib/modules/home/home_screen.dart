@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/constants.dart';
 import '../auth/login_screen.dart';
+import '../presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
+import '../presupuestos_emergencia/presupuesto_emergencia_consulta_screen.dart';
 import '../solicitudes_compra/solicitud_compra_auth_screen.dart';
+import '../solicitudes_compra/solicitud_compra_consulta_screen.dart';
 import 'widgets/module_card.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -192,8 +195,11 @@ class HomeScreen extends StatelessWidget {
                         pendingCount: pendientesPresupuesto,
                         color: Color(AppColors.warningColor),
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Autorizar Presupuesto de Emergencia - Próximamente')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+                            ),
                           );
                         },
                       ),
@@ -235,8 +241,11 @@ class HomeScreen extends StatelessWidget {
                     subtitle: 'Ver (5)',
                     color: const Color(0xFF9C27B0),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ver Presupuestos de Emergencia - Próximamente')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+                        ),
                       );
                     },
                   ),
@@ -249,8 +258,11 @@ class HomeScreen extends StatelessWidget {
                     subtitle: 'Ver (3)',
                     color: Color(AppColors.successColor),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ver Solicitudes de Compra - Próximamente')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SolicitudCompraConsultaScreen(),
+                        ),
                       );
                     },
                   ),
