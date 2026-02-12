@@ -93,6 +93,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '1',
         codigo: '2024-0156',
         prioridad: PrioridadPresupuesto.emergencia,
+        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
         solicitante: Solicitante(
           trabId: '001',
           nombreCompleto: 'Juan Pérez García',
@@ -164,6 +165,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '2',
         codigo: '2024-0155',
         prioridad: PrioridadPresupuesto.urgente,
+        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
         solicitante: Solicitante(
           trabId: '002',
           nombreCompleto: 'María López Mendoza',
@@ -222,6 +224,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '3',
         codigo: '2024-0154',
         prioridad: PrioridadPresupuesto.normal,
+        tipoPresupuesto: TipoPresupuestoEmergencia.servicioTercero,
         solicitante: Solicitante(
           trabId: '003',
           nombreCompleto: 'Carlos Torres Vega',
@@ -280,6 +283,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '4',
         codigo: '2024-0153',
         prioridad: PrioridadPresupuesto.emergencia,
+        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
         solicitante: Solicitante(
           trabId: '004',
           nombreCompleto: 'Pedro Ramírez Luna',
@@ -351,6 +355,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '10',
         codigo: '2024-0140',
         prioridad: PrioridadPresupuesto.emergencia,
+        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
         solicitante: Solicitante(
           trabId: '010',
           nombreCompleto: 'Roberto Díaz Paredes',
@@ -427,6 +432,7 @@ class _PresupuestoEmergenciaAuthScreenState
         presupId: '11',
         codigo: '2024-0138',
         prioridad: PrioridadPresupuesto.urgente,
+        tipoPresupuesto: TipoPresupuestoEmergencia.servicioTercero,
         solicitante: Solicitante(
           trabId: '011',
           nombreCompleto: 'Luis Fernández Castro',

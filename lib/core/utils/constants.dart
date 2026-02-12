@@ -41,6 +41,10 @@ class AppConfig {
   static Environment get environment => _currentEnvironment;
   static bool get isDevelopment => _currentEnvironment == Environment.development;
   static bool get isProduction => _currentEnvironment == Environment.production;
+  
+  // ===== MODO MOCK PARA DESARROLLO =====
+  // Cambiar a false cuando se conecte con la API real
+  static bool useMockData = true;
 }
 
 class AppConstants {

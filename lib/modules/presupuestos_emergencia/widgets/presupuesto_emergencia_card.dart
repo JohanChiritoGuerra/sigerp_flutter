@@ -15,28 +15,29 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color rojoPresupuesto = Color(0xFFF44336);
+
     return Card(
-      elevation: 0,
+      elevation: 1,
+      shadowColor: Colors.black.withOpacity(0.08),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
+      color: Colors.white,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                presupuesto.prioridad.colorClaro,
-                presupuesto.prioridad.color.withOpacity(0.15),
-              ],
-            ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
             border: Border(
               left: BorderSide(
-                color: presupuesto.prioridad.color,
+                color: rojoPresupuesto,
                 width: 4,
               ),
             ),
@@ -45,48 +46,48 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ========== FILA 1: Badge prioridad + Código ==========
+              // ========== FILA 1: Tipo de presupuesto + Código ==========
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Badge de prioridad
+                  // Icono de tipo (rojo, alineado a la izquierda)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: presupuesto.prioridad.color,
-                      borderRadius: BorderRadius.circular(6),
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Icon(
+                      presupuesto.tipoPresupuesto.icon,
+                      color: rojoPresupuesto,
+                      size: 16,
+                    ),
+                  ),
+                  // Label de tipo y código centrados
+                  Expanded(
+                    child: Column(
                       children: [
-                        Icon(
-                          presupuesto.prioridad.icon,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          presupuesto.prioridad.label,
+                          presupuesto.tipoPresupuesto.label,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
+                            color: rojoPresupuesto,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '#${presupuesto.codigo}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // Código de presupuesto
-                  Text(
-                    '#${presupuesto.codigo}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
                     ),
                   ),
                 ],
@@ -155,7 +156,7 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: presupuesto.prioridad.color.withOpacity(0.3),
+                        color: rojoPresupuesto.withOpacity(0.3),
                       ),
                     ),
                     child: Row(
@@ -164,15 +165,15 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                         Icon(
                           Icons.payments_outlined,
                           size: 16,
-                          color: presupuesto.prioridad.color,
+                          color: rojoPresupuesto,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           'S/ ${presupuesto.montoCompletoFormateado}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: presupuesto.prioridad.color,
+                            color: rojoPresupuesto,
                           ),
                         ),
                       ],
@@ -212,10 +213,10 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8E1),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: const Color(0xFFFFB300),
+                      color: const Color(0xFFEF6C00),
                       width: 1,
                     ),
                   ),
@@ -225,7 +226,7 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                       const Icon(
                         Icons.hourglass_empty,
                         size: 14,
-                        color: Color(0xFFFF8F00),
+                        color: Color(0xFFEF6C00),
                       ),
                       const SizedBox(width: 6),
                       const Text(
@@ -233,7 +234,7 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFFFF8F00),
+                          color: Color(0xFFEF6C00),
                         ),
                       ),
                     ],

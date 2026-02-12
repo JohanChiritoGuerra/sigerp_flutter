@@ -111,69 +111,68 @@ class PresupuestoDetalleModal extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    const Color rojoPresupuesto = Color(0xFFF44336);
+    const Color rojoClaroPresupuesto = Color(0xFFFFEBEE);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            presupuesto.prioridad.colorClaro,
-            presupuesto.prioridad.color.withOpacity(0.2),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: presupuesto.prioridad.color.withOpacity(0.3),
+          color: Colors.grey.shade200,
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Badge grande de prioridad
+          // Icono de tipo (rojo, alineado a la izquierda)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: presupuesto.prioridad.color,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: presupuesto.prioridad.color.withOpacity(0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: rojoClaroPresupuesto,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Icon(
+              presupuesto.tipoPresupuesto.icon,
+              color: rojoPresupuesto,
+              size: 24,
+            ),
+          ),
+          // Textos centrados
+          Expanded(
+            child: Column(
               children: [
-                Icon(
-                  presupuesto.prioridad.icon,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
                 Text(
-                  presupuesto.prioridad.label,
+                  presupuesto.tipoPresupuesto.label,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: rojoPresupuesto,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Presupuesto #${presupuesto.codigo}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Código de presupuesto
-          Text(
-            'Presupuesto #${presupuesto.codigo}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
             ),
           ),
         ],
@@ -186,19 +185,20 @@ class PresupuestoDetalleModal extends StatelessWidget {
     required String titulo,
     required Widget child,
   }) {
+    const Color rojoPresupuesto = Color(0xFFF44336);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icono, size: 18, color: presupuesto.prioridad.color),
+            Icon(icono, size: 18, color: rojoPresupuesto),
             const SizedBox(width: 8),
             Text(
               titulo,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: presupuesto.prioridad.color,
+                color: rojoPresupuesto,
                 letterSpacing: 0.5,
               ),
             ),

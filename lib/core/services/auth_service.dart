@@ -164,4 +164,51 @@ class AuthService extends ChangeNotifier {
     await _storage.delete(key: AppConstants.tokenKey);
     await _storage.delete(key: AppConstants.userKey);
   }
+
+  // ===== MODO MOCK PARA DESARROLLO =====
+  /// Login con datos de prueba sin necesidad de API
+  Future<bool> loginMock() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    // Simular delay de red
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    _usuario = Usuario(
+      webUser: 'demo_user',
+      usuaId: 'USR001',
+      apellidoPaterno: 'García',
+      apellidoMaterno: 'López',
+      nombres: 'Juan Carlos',
+      dni: '12345678',
+      direccion: 'Av. Principal 123',
+      parametros: null,
+      trabId: 'TRAB001',
+      empresaId: '02',
+      contLabFecInicio: DateTime(2020, 1, 15),
+      contLabFecFin: null,
+      estado: 1,
+      token: 'mock_token_development_12345',
+    );
+
+    _perfilTrabajador = TrabajadorModel(
+      trabId: 'TRAB001',
+      nombres: 'Juan Carlos García López',
+      trabDNI: '12345678',
+      trabDireccion: 'Av. Principal 123, Lima',
+      trabCorreoElec: 'jgarcia@andahuasi.pe',
+      trabTelef: '999888777',
+      cargo: 'Jefe de Logística',
+      contLabFecInicio: DateTime(2020, 1, 15),
+      contLabFecFin: null,
+    );
+
+    _apiService.setToken(_usuario!.token);
+
+    _isLoading = false;
+    notifyListeners();
+    return true;
+  }
+  // ===== FIN MODO MOCK =====
 }

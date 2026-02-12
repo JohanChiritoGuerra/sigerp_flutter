@@ -191,6 +191,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
+    // En modo mock, ir directo al login sin verificar sesión guardada
+    if (AppConfig.useMockData) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+
     final authService = context.read<AuthService>();
     final hasSession = await authService.checkSavedSession();
 

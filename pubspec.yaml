@@ -84,6 +84,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/logo_color.png
+    - assets/images/login_background.png
+    - assets/images/login_title.png
     # - assets/images/logo_blanco.png  # TEMPORALMENTE DESHABILITADO - archivo no existe
 
   # An image asset can refer to one or more resolution-specific "variants", see

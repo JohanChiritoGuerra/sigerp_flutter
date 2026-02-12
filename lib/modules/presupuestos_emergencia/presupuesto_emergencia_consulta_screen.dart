@@ -169,6 +169,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         presupId: '1',
         codigo: 'PE-2026-0156',
         prioridad: PrioridadPresupuesto.emergencia,
+        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
         solicitante: Solicitante(
           trabId: '001',
           nombreCompleto: 'Juan Pérez García',
@@ -218,6 +219,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         presupId: '2',
         codigo: 'PE-2026-0155',
         prioridad: PrioridadPresupuesto.urgente,
+        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
         solicitante: Solicitante(
           trabId: '002',
           nombreCompleto: 'María López Torres',
@@ -284,6 +286,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         presupId: '3',
         codigo: 'PE-2026-0154',
         prioridad: PrioridadPresupuesto.normal,
+        tipoPresupuesto: TipoPresupuestoEmergencia.servicioTercero,
         solicitante: Solicitante(
           trabId: '003',
           nombreCompleto: 'Pedro Castillo Vega',
@@ -323,6 +326,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         presupId: '4',
         codigo: 'PE-2026-0153',
         prioridad: PrioridadPresupuesto.emergencia,
+        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
         solicitante: Solicitante(
           trabId: '004',
           nombreCompleto: 'Rosa Mendoza Díaz',
@@ -399,6 +403,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         presupId: '5',
         codigo: 'PE-2026-0152',
         prioridad: PrioridadPresupuesto.urgente,
+        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
         solicitante: Solicitante(
           trabId: '005',
           nombreCompleto: 'Diego Flores Rivera',

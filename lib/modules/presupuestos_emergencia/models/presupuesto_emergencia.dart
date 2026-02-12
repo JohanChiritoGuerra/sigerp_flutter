@@ -1,5 +1,81 @@
 import 'package:flutter/material.dart';
 
+/// Tipo de presupuesto de emergencia
+enum TipoPresupuestoEmergencia {
+  consumo,
+  inversiones,
+  servicioTercero;
+
+  static TipoPresupuestoEmergencia fromString(String? value) {
+    switch (value?.toUpperCase()) {
+      case 'CONSUMO':
+        return TipoPresupuestoEmergencia.consumo;
+      case 'INVERSIONES':
+        return TipoPresupuestoEmergencia.inversiones;
+      case 'SERVICIO_TERCERO':
+      case 'SERVICIO TERCERO':
+        return TipoPresupuestoEmergencia.servicioTercero;
+      default:
+        return TipoPresupuestoEmergencia.consumo;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case TipoPresupuestoEmergencia.consumo:
+        return 'PPTO. EMERGENCIA - CONSUMO';
+      case TipoPresupuestoEmergencia.inversiones:
+        return 'PPTO. EMERGENCIA - INVERSIONES';
+      case TipoPresupuestoEmergencia.servicioTercero:
+        return 'PPTO. EMERGENCIA - SERVICIO TERCERO';
+    }
+  }
+
+  String get labelCorto {
+    switch (this) {
+      case TipoPresupuestoEmergencia.consumo:
+        return 'CONSUMO';
+      case TipoPresupuestoEmergencia.inversiones:
+        return 'INVERSIONES';
+      case TipoPresupuestoEmergencia.servicioTercero:
+        return 'SERVICIO TERCERO';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case TipoPresupuestoEmergencia.consumo:
+        return Icons.inventory_2_outlined;
+      case TipoPresupuestoEmergencia.inversiones:
+        return Icons.trending_up_rounded;
+      case TipoPresupuestoEmergencia.servicioTercero:
+        return Icons.engineering_outlined;
+    }
+  }
+
+  Color get iconColor {
+    switch (this) {
+      case TipoPresupuestoEmergencia.consumo:
+        return const Color(0xFF2196F3); // Azul
+      case TipoPresupuestoEmergencia.inversiones:
+        return const Color(0xFF9C27B0); // Púrpura
+      case TipoPresupuestoEmergencia.servicioTercero:
+        return const Color(0xFFFF9800); // Naranja
+    }
+  }
+
+  Color get iconBgColor {
+    switch (this) {
+      case TipoPresupuestoEmergencia.consumo:
+        return const Color(0xFFE3F2FD);
+      case TipoPresupuestoEmergencia.inversiones:
+        return const Color(0xFFF3E5F5);
+      case TipoPresupuestoEmergencia.servicioTercero:
+        return const Color(0xFFFFF3E0);
+    }
+  }
+}
+
 /// Prioridades de presupuesto de emergencia
 enum PrioridadPresupuesto {
   emergencia,
@@ -19,27 +95,11 @@ enum PrioridadPresupuesto {
     }
   }
 
-  Color get color {
-    switch (this) {
-      case PrioridadPresupuesto.emergencia:
-        return const Color(0xFFF44336); // Rojo
-      case PrioridadPresupuesto.urgente:
-        return const Color(0xFFFF9800); // Naranja
-      case PrioridadPresupuesto.normal:
-        return const Color(0xFF4CAF50); // Verde
-    }
-  }
+  /// Color rojo unificado para todos los presupuestos de emergencia
+  Color get color => const Color(0xFFF44336);
 
-  Color get colorClaro {
-    switch (this) {
-      case PrioridadPresupuesto.emergencia:
-        return const Color(0xFFFFEBEE);
-      case PrioridadPresupuesto.urgente:
-        return const Color(0xFFFFF3E0);
-      case PrioridadPresupuesto.normal:
-        return const Color(0xFFE8F5E9);
-    }
-  }
+  /// Color claro rojo unificado
+  Color get colorClaro => const Color(0xFFFFEBEE);
 
   String get label {
     switch (this) {
@@ -263,6 +323,7 @@ class PresupuestoEmergencia {
   final String presupId;
   final String codigo;
   final PrioridadPresupuesto prioridad;
+  final TipoPresupuestoEmergencia tipoPresupuesto;
   final Solicitante solicitante;
   final double montoTotal;
   final DateTime fechaSolicitud;
@@ -277,6 +338,7 @@ class PresupuestoEmergencia {
     required this.presupId,
     required this.codigo,
     required this.prioridad,
+    this.tipoPresupuesto = TipoPresupuestoEmergencia.consumo,
     required this.solicitante,
     required this.montoTotal,
     required this.fechaSolicitud,
@@ -293,6 +355,7 @@ class PresupuestoEmergencia {
       presupId: json['presupId'] ?? '',
       codigo: json['codigo'] ?? '',
       prioridad: PrioridadPresupuesto.fromString(json['prioridad']),
+      tipoPresupuesto: TipoPresupuestoEmergencia.fromString(json['tipoPresupuesto']),
       solicitante: Solicitante.fromJson(json['solicitante'] ?? {}),
       montoTotal: (json['montoTotal'] as num?)?.toDouble() ?? 0.0,
       fechaSolicitud:
@@ -319,6 +382,7 @@ class PresupuestoEmergencia {
       'presupId': presupId,
       'codigo': codigo,
       'prioridad': prioridad.label,
+      'tipoPresupuesto': tipoPresupuesto.labelCorto,
       'solicitante': solicitante.toJson(),
       'montoTotal': montoTotal,
       'fechaSolicitud': fechaSolicitud.toIso8601String(),
