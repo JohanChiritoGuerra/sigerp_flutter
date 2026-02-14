@@ -298,33 +298,74 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: double.infinity,
                                     child: Consumer<AuthService>(
                                       builder: (context, authService, child) {
-                                        return ElevatedButton(
-                                          onPressed: authService.isLoading ? null : _login,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Color(AppColors.primaryColor),
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(vertical: 18),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(16),
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(16),
+                                            gradient: const LinearGradient(
+                                              colors: [
+                                                Color(0xDDFFFFFF),
+                                                Color(0xAAFFFFFF),
+                                              ],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
                                             ),
-                                            elevation: 0,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.white.withOpacity(0.25),
+                                                blurRadius: 16,
+                                                spreadRadius: 1,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.08),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
                                           ),
-                                          child: authService.isLoading
-                                              ? const SizedBox(
-                                                  height: 20,
-                                                  width: 20,
-                                                  child: CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    color: Colors.white,
-                                                  ),
-                                                )
-                                              : const Text(
-                                                  'Ingresar',
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: authService.isLoading ? null : _login,
+                                              borderRadius: BorderRadius.circular(16),
+                                              splashColor: Colors.white.withOpacity(0.3),
+                                              highlightColor: Colors.white.withOpacity(0.1),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                                child: Center(
+                                                  child: authService.isLoading
+                                                      ? const SizedBox(
+                                                          height: 20,
+                                                          width: 20,
+                                                          child: CircularProgressIndicator(
+                                                            strokeWidth: 2.5,
+                                                            color: Color(0xFF37474F),
+                                                          ),
+                                                        )
+                                                      : const Row(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Icon(
+                                                              Icons.login_rounded,
+                                                              color: Color(0xFF37474F),
+                                                              size: 21,
+                                                            ),
+                                                            SizedBox(width: 10),
+                                                            Text(
+                                                              'Ingresar',
+                                                              style: TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight: FontWeight.w800,
+                                                                color: Color(0xFF37474F),
+                                                                letterSpacing: 0.8,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
                                                 ),
+                                              ),
+                                            ),
+                                          ),
                                         );
                                       },
                                     ),

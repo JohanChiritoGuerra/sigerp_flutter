@@ -6,21 +6,48 @@ Este documento define la paleta de colores oficial de la aplicación SIGERP. Tod
 
 ## 📌 Colores Principales
 
-### Azul Primario (Primary Blue)
-El color principal de la marca, usado en elementos destacados, botones principales y la AppBar.
+El color primario de la app es intercambiable entre **Azul** y **Verde**. Para cambiar el color primario, actualizar los valores en `lib/core/utils/constants.dart` → clase `AppColors`.
+
+> **Instrucción rápida:** Decir "usa el color primario azul" o "usa el color primario verde" para cambiar.
+
+### 🔵 Opción A — Azul Primario (Primary Blue)
+Transmite confianza y profesionalismo. Inspirado en la identidad visual de "La Buena".
 
 | Nombre | Hex | RGB | Uso |
 |--------|-----|-----|-----|
 | **Primary** | `#1565C0` | rgb(21, 101, 192) | AppBar, botones principales, iconos activos |
 | **Primary Light** | `#1E88E5` | rgb(30, 136, 229) | Hover states, fondos de tarjetas destacadas |
 | **Primary Dark** | `#0D47A1` | rgb(13, 71, 161) | Textos importantes, encabezados |
+| **Text Primary** | `#0D47A1` | rgb(13, 71, 161) | Títulos principales, encabezados destacados |
 
 ```dart
-// Flutter
+// Flutter — Azul Primario
 static const int primaryColor = 0xFF1565C0;
 static const int primaryLightColor = 0xFF1E88E5;
 static const int primaryDarkColor = 0xFF0D47A1;
+static const int textPrimaryColor = 0xFF0D47A1;
 ```
+
+### 🟢 Opción B — Verde Primario (Primary Green)
+Transmite frescura y dinamismo. Alternativa vibrante para la app.
+
+| Nombre | Hex | RGB | Uso |
+|--------|-----|-----|-----|
+| **Primary** | `#2EAD4B` | rgb(46, 173, 75) | AppBar, botones principales, iconos activos |
+| **Primary Light** | `#4CAF50` | rgb(76, 175, 80) | Hover states, fondos de tarjetas destacadas |
+| **Primary Dark** | `#1B5E20` | rgb(27, 94, 32) | Textos importantes, encabezados |
+| **Text Primary** | `#1B5E20` | rgb(27, 94, 32) | Títulos principales, encabezados destacados |
+
+```dart
+// Flutter — Verde Primario
+static const int primaryColor = 0xFF2EAD4B;
+static const int primaryLightColor = 0xFF4CAF50;
+static const int primaryDarkColor = 0xFF1B5E20;
+static const int textPrimaryColor = 0xFF1B5E20;
+```
+
+### ⚙️ Color Primario Actual
+> **Activo: 🔵 Azul Primario (`#1565C0`)**
 
 ---
 

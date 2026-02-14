@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/constants.dart';
 import '../models/presupuesto_emergencia.dart';
 
+/// Paleta pastel por tipo (misma que el card)
+class _ModalPastel {
+  final Color acento;
+  final Color fondoIcono;
+  final Color fondoMonto;
+  final Color textoMonto;
+
+  const _ModalPastel({
+    required this.acento,
+    required this.fondoIcono,
+    required this.fondoMonto,
+    required this.textoMonto,
+  });
+}
+
 class PresupuestoDetalleModal extends StatelessWidget {
   final PresupuestoEmergencia presupuesto;
   final bool mostrarAcciones;
@@ -17,6 +32,27 @@ class PresupuestoDetalleModal extends StatelessWidget {
     this.onAutorizar,
     this.onObservar,
   });
+
+  static const Map<TipoPresupuestoEmergencia, _ModalPastel> _paleta = {
+    TipoPresupuestoEmergencia.consumo: _ModalPastel(
+      acento: Color(0xFFAB7AE0),
+      fondoIcono: Color(0xFFF3ECFC),
+      fondoMonto: Color(0xFFF5EFFE),
+      textoMonto: Color(0xFF7E4FC9),
+    ),
+    TipoPresupuestoEmergencia.inversiones: _ModalPastel(
+      acento: Color(0xFFE8915A),
+      fondoIcono: Color(0xFFFDF0E8),
+      fondoMonto: Color(0xFFFEF3EC),
+      textoMonto: Color(0xFFC06D34),
+    ),
+    TipoPresupuestoEmergencia.servicioTercero: _ModalPastel(
+      acento: Color(0xFFE57373),
+      fondoIcono: Color(0xFFFCECEC),
+      fondoMonto: Color(0xFFFDEEEE),
+      textoMonto: Color(0xFFD32F2F),
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -111,8 +147,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
   }
 
   Widget _buildHeader() {
-    const Color rojoPresupuesto = Color(0xFFF44336);
-    const Color rojoClaroPresupuesto = Color(0xFFFFEBEE);
+    final pastel = _paleta[presupuesto.tipoPresupuesto]!;
 
     return Container(
       width: double.infinity,
@@ -126,7 +161,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -135,37 +170,37 @@ class PresupuestoDetalleModal extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Icono de tipo (rojo, alineado a la izquierda)
+          // Icono de tipo con color pastel
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: rojoClaroPresupuesto,
-              borderRadius: BorderRadius.circular(12),
+              color: pastel.fondoIcono,
+              shape: BoxShape.circle,
             ),
             child: Icon(
               presupuesto.tipoPresupuesto.icon,
-              color: rojoPresupuesto,
+              color: pastel.acento,
               size: 24,
             ),
           ),
-          // Textos centrados
+          const SizedBox(width: 14),
+          // Textos
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   presupuesto.tipoPresupuesto.label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: rojoPresupuesto,
-                    letterSpacing: 0.3,
+                    color: pastel.textoMonto,
+                    letterSpacing: 0.2,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   'Presupuesto #${presupuesto.codigo}',
-                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -185,20 +220,20 @@ class PresupuestoDetalleModal extends StatelessWidget {
     required String titulo,
     required Widget child,
   }) {
-    const Color rojoPresupuesto = Color(0xFFF44336);
+    final pastel = _paleta[presupuesto.tipoPresupuesto]!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icono, size: 18, color: rojoPresupuesto),
+            Icon(icono, size: 18, color: pastel.acento),
             const SizedBox(width: 8),
             Text(
               titulo,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: rojoPresupuesto,
+                color: pastel.textoMonto,
                 letterSpacing: 0.5,
               ),
             ),
@@ -221,41 +256,42 @@ class PresupuestoDetalleModal extends StatelessWidget {
         children: [
           _buildInfoRow('Solicitante', presupuesto.solicitante.nombreCompleto),
           _buildInfoRow('Sección', presupuesto.solicitante.seccion),
-          if (presupuesto.solicitante.cargo != null)
-            _buildInfoRow('Cargo', presupuesto.solicitante.cargo!),
           _buildInfoRow('Fecha', presupuesto.fechaHoraFormateada),
           const Divider(height: 24),
           // Monto total destacado
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: presupuesto.prioridad.colorClaro,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'MONTO TOTAL',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                    letterSpacing: 0.5,
+          Builder(builder: (_) {
+            final p = _paleta[presupuesto.tipoPresupuesto]!;
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: p.fondoMonto,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'MONTO TOTAL',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[500],
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'S/ ${presupuesto.montoCompletoFormateado}',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: presupuesto.prioridad.color,
+                  const SizedBox(height: 4),
+                  Text(
+                    'S/ ${presupuesto.montoCompletoFormateado}',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: p.textoMonto,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -333,7 +369,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: presupuesto.prioridad.color.withOpacity(0.2),
+                      color: _paleta[presupuesto.tipoPresupuesto]!.acento.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -344,7 +380,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: presupuesto.prioridad.color,
+                          color: _paleta[presupuesto.tipoPresupuesto]!.acento,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -367,7 +403,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: presupuesto.prioridad.color,
+                          color: _paleta[presupuesto.tipoPresupuesto]!.textoMonto,
                         ),
                       ),
                     ],
@@ -379,34 +415,37 @@ class PresupuestoDetalleModal extends StatelessWidget {
           }),
           // Total
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: presupuesto.prioridad.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'TOTAL',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: presupuesto.prioridad.color,
+          Builder(builder: (_) {
+            final p = _paleta[presupuesto.tipoPresupuesto]!;
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: p.fondoMonto,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'TOTAL',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: p.textoMonto,
+                    ),
                   ),
-                ),
-                Text(
-                  'S/ ${presupuesto.montoCompletoFormateado}',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: presupuesto.prioridad.color,
+                  Text(
+                    'S/ ${presupuesto.montoCompletoFormateado}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: p.textoMonto,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -576,6 +615,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
   }
 
   Widget _buildBotonesAccion(BuildContext context) {
+    final pastel = _paleta[presupuesto.tipoPresupuesto]!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -597,31 +637,47 @@ class PresupuestoDetalleModal extends StatelessWidget {
                 Navigator.pop(context);
                 onObservar?.call();
               },
-              icon: const Icon(Icons.cancel_outlined),
-              label: const Text('OBSERVAR'),
+              icon: const Icon(Icons.highlight_off_rounded, size: 20),
+              label: const Text(
+                'OBSERVAR',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  letterSpacing: 0.3,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Color(AppColors.errorColor),
-                side: BorderSide(color: Color(AppColors.errorColor)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                foregroundColor: const Color(0xFFEF6B6B),
+                side: const BorderSide(color: Color(0xFFEF6B6B), width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           // Botón Autorizar
           Expanded(
             child: ElevatedButton.icon(
               onPressed: onAutorizar,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('AUTORIZAR'),
+              icon: const Icon(Icons.verified_rounded, size: 20),
+              label: const Text(
+                'AUTORIZAR',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(AppColors.successColor),
+                backgroundColor: pastel.acento,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 2,
+                shadowColor: pastel.acento.withOpacity(0.4),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),

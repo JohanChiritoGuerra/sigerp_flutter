@@ -1,0 +1,161 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Flutter App",
+			"type": "shell",
+			"command": "flutter run -d chrome",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Flutter App on Emulator",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Flutter App on Emulator v2",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Flutter App on Windows",
+			"type": "shell",
+			"command": "flutter run -d windows",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Flutter on Emulator Final",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Flutter App",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator Run",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator v2",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator v3",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator Pastel",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator Pastel v2",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Emulator Title Color",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Modal Pastel",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Modal Buttons",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Symmetric Buttons",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Flutter Run Emulator",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Blue Primary",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Green Consumo",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run New Palettes",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

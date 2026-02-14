@@ -74,14 +74,17 @@ class AppColors {
   // ========== COLORES PRINCIPALES ==========
   // Ver: documentation/General/PALETA_DE_COLORES.md
   
-  /// Verde primario - AppBar, botones principales, iconos activos
-  static const int primaryColor = 0xFF2EAD4B;
+  /// Azul primario - AppBar, botones principales, iconos activos
+  /// Opciones: Azul 0xFF1565C0 | Verde 0xFF2EAD4B
+  static const int primaryColor = 0xFF1565C0;
   
-  /// Verde primario claro - Hover states, fondos destacados
-  static const int primaryLightColor = 0xFF4CAF50;
+  /// Azul primario claro - Hover states, fondos destacados
+  /// Opciones: Azul 0xFF1E88E5 | Verde 0xFF4CAF50
+  static const int primaryLightColor = 0xFF1E88E5;
   
-  /// Verde primario oscuro - Textos importantes, encabezados
-  static const int primaryDarkColor = 0xFF1B5E20;
+  /// Azul primario oscuro - Textos importantes, encabezados
+  /// Opciones: Azul 0xFF0D47A1 | Verde 0xFF1B5E20
+  static const int primaryDarkColor = 0xFF0D47A1;
   
   /// Color secundario - Textos del cuerpo
   static const int secondaryColor = 0xFF424242;
@@ -109,10 +112,12 @@ class AppColors {
   // ========== COLORES DE TEXTO ==========
   
   /// Títulos principales, encabezados destacados
-  static const int textPrimaryColor = 0xFF1B5E20;
+  /// Opciones: Azul 0xFF0D47A1 | Verde 0xFF1B5E20
+  static const int textPrimaryColor = 0xFF0D47A1;
   
   /// Subtítulos, enlaces
-  static const int textSecondaryColor = 0xFF2EAD4B;
+  /// Opciones: Azul 0xFF1565C0 | Verde 0xFF2EAD4B
+  static const int textSecondaryColor = 0xFF1565C0;
   
   /// Texto general del cuerpo
   static const int textBodyColor = 0xFF424242;
