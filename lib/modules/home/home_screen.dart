@@ -5,12 +5,95 @@ import '../../core/utils/constants.dart';
 import '../auth/login_screen.dart';
 import '../presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
 import '../presupuestos_emergencia/presupuesto_emergencia_consulta_screen.dart';
+import '../presupuestos_emergencia/services/presupuesto_emergencia_service.dart';
 import '../solicitudes_compra/solicitud_compra_auth_screen.dart';
 import '../solicitudes_compra/solicitud_compra_consulta_screen.dart';
+import '../solicitudes_compra/services/solicitud_compra_service.dart';
 import 'widgets/module_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final PresupuestoEmergenciaService _peService = PresupuestoEmergenciaService();
+  final SolicitudCompraService _scService = SolicitudCompraService();
+
+  int _pendientesPresupuesto = 0;
+  int _pendientesSolicitud = 0;
+  int _consultaPresupuesto = 0;
+  int _consultaSolicitud = 0;
+  DateTime? _ultimaActualizacion;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar datos al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    final authService = context.read<AuthService>();
+    final usuario = authService.usuario;
+    final trabId = usuario?.trabId ?? '';
+    final empresaId = usuario?.empresaId ?? '02';
+
+    try {
+      // Llamar ambos servicios en paralelo
+      final pePendientesFuture = _peService.obtenerPresupuestosPendientes(trabId: trabId, empresaId: empresaId);
+      final scPendientesFuture = _scService.obtenerSolicitudesPendientes(trabId: trabId, empresaId: empresaId);
+      final peAutorizadosFuture = _peService.obtenerPresupuestosAutorizados(trabId: trabId, empresaId: empresaId);
+      final scAutorizadosFuture = _scService.obtenerSolicitudesAutorizadas(trabId: trabId, empresaId: empresaId);
+
+      final peRes = await pePendientesFuture;
+      final scRes = await scPendientesFuture;
+      final peAuthRes = await peAutorizadosFuture;
+      final scAuthRes = await scAutorizadosFuture;
+
+      if (mounted) {
+        setState(() {
+          _pendientesPresupuesto = peRes.success ? peRes.presupuestos.length : 0;
+          _pendientesSolicitud = scRes.success ? scRes.solicitudes.length : 0;
+          final peAutorizados = peAuthRes.success ? peAuthRes.presupuestos.length : 0;
+          final scAutorizados = scAuthRes.success ? scAuthRes.solicitudes.length : 0;
+          _consultaPresupuesto = _pendientesPresupuesto + peAutorizados;
+          _consultaSolicitud = _pendientesSolicitud + scAutorizados;
+          _ultimaActualizacion = DateTime.now();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  String _formatUltimaActualizacion() {
+    if (_ultimaActualizacion == null) return 'Actualizando...';
+    final now = DateTime.now();
+    final diff = now.difference(_ultimaActualizacion!);
+    if (diff.inSeconds < 30) return 'Hace un momento';
+    if (diff.inMinutes < 1) return 'Hace ${diff.inSeconds}s';
+    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
+    // Formato hora
+    final h = _ultimaActualizacion!.hour.toString().padLeft(2, '0');
+    final m = _ultimaActualizacion!.minute.toString().padLeft(2, '0');
+    return 'Hoy a las $h:$m';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +107,9 @@ class HomeScreen extends StatelessWidget {
     final tienePermisoSolicitud = true;   // Cambiar según lógica real
     final tieneAlgunPermiso = tienePermisoPresupuesto || tienePermisoSolicitud;
     
-    // Contar pendientes (simulado - debe venir del backend)
-    final pendientesPresupuesto = 3;
-    final pendientesSolicitud = 5;
+    // Usar conteos dinámicos del estado
+    final pendientesPresupuesto = _pendientesPresupuesto;
+    final pendientesSolicitud = _pendientesSolicitud;
     final totalPendientes = pendientesPresupuesto + pendientesSolicitud;
 
     return Scaffold(
@@ -115,7 +198,11 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       drawer: _buildDrawer(context, authService, tienePermisoPresupuesto, tienePermisoSolicitud),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        color: Color(AppColors.primaryColor),
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -238,7 +325,7 @@ class HomeScreen extends StatelessWidget {
                   child: ModuleCard(
                     icon: Icons.description_outlined,
                     title: 'Ver\nPresupuesto\nEmergencia',
-                    subtitle: 'Ver (5)',
+                    subtitle: 'Ver (${_consultaPresupuesto})',
                     color: const Color(0xFF9C27B0),
                     onTap: () {
                       Navigator.push(
@@ -255,7 +342,7 @@ class HomeScreen extends StatelessWidget {
                   child: ModuleCard(
                     icon: Icons.shopping_bag_outlined,
                     title: 'Ver\nSolicitud\nCompra',
-                    subtitle: 'Ver (3)',
+                    subtitle: 'Ver (${_consultaSolicitud})',
                     color: Color(AppColors.successColor),
                     onTap: () {
                       Navigator.push(
@@ -284,14 +371,24 @@ class HomeScreen extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.refresh,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
+                        if (_isLoading)
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.grey[600],
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.refresh,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                         const SizedBox(width: 4),
                         Text(
-                          'Última actualización: Ahora',
+                          'Última actualización: ${_formatUltimaActualizacion()}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -307,6 +404,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
