@@ -10,6 +10,8 @@ import '../solicitudes_compra/solicitud_compra_auth_screen.dart';
 import '../solicitudes_compra/solicitud_compra_consulta_screen.dart';
 import '../solicitudes_compra/services/solicitud_compra_service.dart';
 import 'widgets/module_card.dart';
+import 'widgets/notifications_panel.dart';
+import 'widgets/profile_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -138,12 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  // TODO: Navegar a Centro de Notificaciones
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Centro de Notificaciones - Próximamente')),
-                  );
-                },
+                onPressed: () => NotificationsPanel.show(context),
               ),
               if (totalPendientes > 0)
                 Positioned(
@@ -176,12 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () {
-                // TODO: Navegar a Perfil
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mi Perfil - Próximamente')),
-                );
-              },
+              onTap: () => ProfileBottomSheet.show(context),
               child: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Text(
