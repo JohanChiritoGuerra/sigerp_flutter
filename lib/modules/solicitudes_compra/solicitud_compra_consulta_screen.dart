@@ -620,7 +620,7 @@ class _SolicitudCompraConsultaScreenState
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Color(AppColors.successColor),
+        backgroundColor: Color(AppColors.primaryColor),
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text(

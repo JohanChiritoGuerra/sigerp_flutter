@@ -260,6 +260,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             
+            // Espacio entre AppBar/banner y la sección
+            if (tieneAlgunPermiso && totalPendientes == 0)
+              const SizedBox(height: 20),
+
             // Sección AUTORIZAR (solo si tiene algún permiso) - CON FRANJA
             if (tieneAlgunPermiso)
               _buildSectionWithBand(
