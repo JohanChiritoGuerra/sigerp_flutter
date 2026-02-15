@@ -282,116 +282,199 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFEF5350).withOpacity(0.12),
+                blurRadius: 32,
+                spreadRadius: 2,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Título
-              Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Color(AppColors.errorColor),
-                    size: 28,
+              // Header con barra lateral roja
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: Color(0xFFEF5350), width: 5),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'OBSERVAR SOLICITUD',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(AppColors.errorColor),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  color: Color(0xFFFFF0F0),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF5350).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.front_hand_rounded,
+                        color: Color(0xFFD32F2F),
+                        size: 24,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Código de solicitud
-              Text(
-                '#${solicitud.codigo}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Observar Solicitud',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFD32F2F),
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '#${solicitud.codigo}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
 
-              // Label
-              const Text(
-                'Ingrese el motivo de la observación:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              // Body
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Motivo de la observación',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Campo de texto
+                    TextField(
+                      controller: motivoController,
+                      maxLines: 4,
+                      maxLength: 500,
+                      style: const TextStyle(fontSize: 14, height: 1.5),
+                      decoration: InputDecoration(
+                        hintText: 'Describa el motivo de la observación...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 13.5,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFFAFAFA),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.red.shade100),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFEF5350), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                        counterStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Botones en fila (diferente al PE que los tiene apilados)
+                    Row(
+                      children: [
+                        // Cancelar
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF5350),
+                              side: const BorderSide(color: Color(0xFFEF5350), width: 1.2),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              'CANCELAR',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Observar
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              if (motivoController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Debe ingresar un motivo')),
+                                );
+                                return;
+                              }
+                              Navigator.pop(dialogContext);
+                              await _observarSolicitud(
+                                solicitud,
+                                motivoController.text.trim(),
+                              );
+                            },
+                            icon: const Icon(Icons.front_hand_rounded, size: 18),
+                            label: const Text(
+                              'OBSERVAR',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13.5,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF5350),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // Campo de texto
-              TextField(
-                controller: motivoController,
-                maxLines: 4,
-                maxLength: 500,
-                decoration: InputDecoration(
-                  hintText: 'Escriba aquí el motivo...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Color(AppColors.errorColor)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Botón Observar Solicitud
-              ElevatedButton.icon(
-                onPressed: () async {
-                  if (motivoController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Debe ingresar un motivo')),
-                    );
-                    return;
-                  }
-
-                  // Cerrar el dialog de observación
-                  Navigator.pop(dialogContext);
-
-                  await _observarSolicitud(
-                    solicitud,
-                    motivoController.text.trim(),
-                  );
-                },
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('OBSERVAR SOLICITUD'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(AppColors.errorColor),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Botón Cancelar - solo cierra el dialog y vuelve al modal de detalle
-              OutlinedButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('CANCELAR'),
               ),
             ],
           ),

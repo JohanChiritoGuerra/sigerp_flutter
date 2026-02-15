@@ -273,7 +273,7 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
     }
 
     return Align(
-      alignment: Alignment.centerRight,
+      alignment: Alignment.center,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(

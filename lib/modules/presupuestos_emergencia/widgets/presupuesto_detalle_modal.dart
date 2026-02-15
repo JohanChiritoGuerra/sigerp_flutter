@@ -637,7 +637,7 @@ class PresupuestoDetalleModal extends StatelessWidget {
                 Navigator.pop(context);
                 onObservar?.call();
               },
-              icon: const Icon(Icons.highlight_off_rounded, size: 20),
+              icon: const Icon(Icons.front_hand_rounded, size: 20),
               label: const Text(
                 'OBSERVAR',
                 style: TextStyle(
@@ -671,10 +671,10 @@ class PresupuestoDetalleModal extends StatelessWidget {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: pastel.acento,
+                backgroundColor: pastel.textoMonto,
                 foregroundColor: Colors.white,
                 elevation: 2,
-                shadowColor: pastel.acento.withOpacity(0.4),
+                shadowColor: pastel.textoMonto.withOpacity(0.4),
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),

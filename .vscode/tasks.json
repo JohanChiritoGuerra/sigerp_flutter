@@ -156,6 +156,97 @@
 			"command": "flutter run -d emulator-5556",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run App",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Observar",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Cancelar Fix",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run SC Card",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run SC Colors",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run SC Modal",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Observar Fix",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Icons Green",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Card Border",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Drawer Nav",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Consultas",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Estado Center",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Run Padding Fix",
+			"type": "shell",
+			"command": "flutter run -d emulator-5556",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

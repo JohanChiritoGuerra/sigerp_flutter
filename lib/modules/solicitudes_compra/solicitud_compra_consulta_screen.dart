@@ -682,6 +682,8 @@ class _SolicitudCompraConsultaScreenState
               // Tabs
               TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 indicatorColor: Colors.white,
                 indicatorWeight: 3,
                 labelColor: Colors.white,
@@ -690,6 +692,7 @@ class _SolicitudCompraConsultaScreenState
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                 tabs: [
                   Tab(
                     child: Row(
@@ -825,7 +828,7 @@ class _SolicitudCompraConsultaScreenState
     return RefreshIndicator(
       onRefresh: _cargarSolicitudes,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _solicitudesFiltradas.length,
         itemBuilder: (context, index) {
           final solicitud = _solicitudesFiltradas[index];

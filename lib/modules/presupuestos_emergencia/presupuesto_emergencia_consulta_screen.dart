@@ -458,6 +458,7 @@ class _PresupuestoEmergenciaConsultaScreenState
       backgroundColor: Colors.transparent,
       builder: (context) => PresupuestoDetalleModal(
         presupuesto: presupuesto,
+        mostrarAcciones: false,
         modoConsulta: true, // Solo lectura
         onAutorizar: null,
         onObservar: null,
@@ -756,6 +757,8 @@ class _PresupuestoEmergenciaConsultaScreenState
               // Tabs
               TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 indicatorColor: Colors.white,
                 indicatorWeight: 3,
                 labelColor: Colors.white,
@@ -764,6 +767,7 @@ class _PresupuestoEmergenciaConsultaScreenState
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                 tabs: [
                   Tab(
                     child: Row(
@@ -900,7 +904,7 @@ class _PresupuestoEmergenciaConsultaScreenState
     return RefreshIndicator(
       onRefresh: _cargarPresupuestos,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _presupuestosFiltrados.length,
         itemBuilder: (context, index) {
           final presupuesto = _presupuestosFiltrados[index];

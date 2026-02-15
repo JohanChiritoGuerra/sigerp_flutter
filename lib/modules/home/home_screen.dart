@@ -491,8 +491,11 @@ class HomeScreen extends StatelessWidget {
                       color: Color(AppColors.warningColor),
                       onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Autorizar Presupuesto de Emergencia - Próximamente')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+                          ),
                         );
                       },
                     ),
@@ -504,8 +507,11 @@ class HomeScreen extends StatelessWidget {
                       color: Color(AppColors.infoColor),
                       onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Autorizar Solicitud de Compra - Próximamente')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SolicitudCompraAuthScreen(),
+                          ),
                         );
                       },
                     ),
@@ -521,8 +527,11 @@ class HomeScreen extends StatelessWidget {
                   color: const Color(0xFF9C27B0),
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ver Presupuestos de Emergencia - Próximamente')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+                      ),
                     );
                   },
                 ),
@@ -533,8 +542,11 @@ class HomeScreen extends StatelessWidget {
                   color: Color(AppColors.successColor),
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ver Solicitudes de Compra - Próximamente')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SolicitudCompraConsultaScreen(),
+                      ),
                     );
                   },
                 ),

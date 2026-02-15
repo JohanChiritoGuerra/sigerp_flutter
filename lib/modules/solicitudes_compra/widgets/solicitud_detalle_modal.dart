@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
-import '../../../core/utils/constants.dart';
 import '../models/solicitud_compra.dart';
+
+/// Paleta pastel por tipo de solicitud
+class _SCModalPastel {
+  final Color acento;
+  final Color fondoClaro;
+  final Color textoFuerte;
+  final Color fondoMonto;
+
+  const _SCModalPastel({
+    required this.acento,
+    required this.fondoClaro,
+    required this.textoFuerte,
+    required this.fondoMonto,
+  });
+}
 
 class SolicitudDetalleModal extends StatelessWidget {
   final SolicitudCompra solicitud;
@@ -15,6 +29,33 @@ class SolicitudDetalleModal extends StatelessWidget {
     this.onAutorizar,
     this.onObservar,
   });
+
+  static const Map<TipoSolicitudCompra, _SCModalPastel> _paleta = {
+    TipoSolicitudCompra.compraMateriales: _SCModalPastel(
+      acento: Color(0xFFAB7AE0),
+      fondoClaro: Color(0xFFF5F0FC),
+      textoFuerte: Color(0xFF7E4FC9),
+      fondoMonto: Color(0xFFEBE2F7),
+    ),
+    TipoSolicitudCompra.compraActivoFijo: _SCModalPastel(
+      acento: Color(0xFFE8915A),
+      fondoClaro: Color(0xFFFFF5ED),
+      textoFuerte: Color(0xFFC06D34),
+      fondoMonto: Color(0xFFFDEBDA),
+    ),
+    TipoSolicitudCompra.servicioTercero: _SCModalPastel(
+      acento: Color(0xFFE57373),
+      fondoClaro: Color(0xFFFFF0F0),
+      textoFuerte: Color(0xFFD32F2F),
+      fondoMonto: Color(0xFFFDEEEE),
+    ),
+    TipoSolicitudCompra.cargaDiversaGestion: _SCModalPastel(
+      acento: Color(0xFF4CAF6A),
+      fondoClaro: Color(0xFFEFF9F3),
+      textoFuerte: Color(0xFF2E8B4A),
+      fondoMonto: Color(0xFFE0F2E5),
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -106,40 +147,36 @@ class SolicitudDetalleModal extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final p = _paleta[solicitud.tipo]!;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            solicitud.tipo.color.withOpacity(0.1),
-            solicitud.tipo.color.withOpacity(0.2),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(
-            color: solicitud.tipo.color,
-            width: 4,
-          ),
-        ),
+        color: p.fondoClaro,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Icon(
-            solicitud.tipo.icon,
-            color: solicitud.tipo.color,
-            size: 36,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: p.acento.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              solicitud.tipo.icon,
+              color: p.acento,
+              size: 24,
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
               solicitud.tipo.nombre,
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: solicitud.tipo.color,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: p.textoFuerte,
+                letterSpacing: 0.3,
               ),
             ),
           ),
@@ -153,19 +190,20 @@ class SolicitudDetalleModal extends StatelessWidget {
     required String titulo,
     required Widget child,
   }) {
+    final p = _paleta[solicitud.tipo]!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icono, size: 18, color: solicitud.tipo.colorOscuro),
+            Icon(icono, size: 18, color: p.textoFuerte),
             const SizedBox(width: 8),
             Text(
               titulo,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: solicitud.tipo.colorOscuro,
+                color: p.textoFuerte,
                 letterSpacing: 0.5,
               ),
             ),
@@ -226,11 +264,12 @@ class SolicitudDetalleModal extends StatelessWidget {
   }
 
   Widget _buildMontoEstimado() {
+    final p = _paleta[solicitud.tipo]!;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: solicitud.tipo.backgroundColor,
+        color: p.fondoMonto,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -238,9 +277,9 @@ class SolicitudDetalleModal extends StatelessWidget {
           Text(
             'S/ ${solicitud.montoCompletoFormateado}',
             style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: solicitud.tipo.color,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: p.textoFuerte,
             ),
           ),
         ],
@@ -249,6 +288,7 @@ class SolicitudDetalleModal extends StatelessWidget {
   }
 
   Widget _buildListaItems() {
+    final p = _paleta[solicitud.tipo]!;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -269,18 +309,16 @@ class SolicitudDetalleModal extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: solicitud.tipo.color.withOpacity(0.2),
+                    color: p.acento.withOpacity(0.15),
                     width: 1,
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Fila 1: Código y Descripción
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Código
                         if (item.codigo.isNotEmpty) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -288,7 +326,7 @@ class SolicitudDetalleModal extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: solicitud.tipo.color.withOpacity(0.1),
+                              color: p.fondoClaro,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -296,14 +334,13 @@ class SolicitudDetalleModal extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: solicitud.tipo.color,
+                                color: p.acento,
                                 fontFamily: 'monospace',
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                         ],
-                        // Descripción
                         Expanded(
                           child: Text(
                             item.descripcion,
@@ -317,10 +354,8 @@ class SolicitudDetalleModal extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    // Fila 2: Cantidad, Unidad, Precio Unitario, Subtotal
                     Row(
                       children: [
-                        // Cantidad y Unidad
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -340,7 +375,6 @@ class SolicitudDetalleModal extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Precio unitario
                         Text(
                           'x S/ ${item.precioUnitarioFormateado}',
                           style: TextStyle(
@@ -349,13 +383,12 @@ class SolicitudDetalleModal extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        // Subtotal
                         Text(
                           'S/ ${item.subtotalFormateado}',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: solicitud.tipo.colorOscuro,
+                            color: p.textoFuerte,
                           ),
                         ),
                       ],
@@ -391,6 +424,7 @@ class SolicitudDetalleModal extends StatelessWidget {
   }
 
   Widget _buildBotonesAccion(BuildContext context) {
+    final p = _paleta[solicitud.tipo]!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -412,31 +446,47 @@ class SolicitudDetalleModal extends StatelessWidget {
                 Navigator.pop(context);
                 onObservar?.call();
               },
-              icon: const Icon(Icons.cancel_outlined),
-              label: const Text('OBSERVAR'),
+              icon: const Icon(Icons.front_hand_rounded, size: 20),
+              label: const Text(
+                'OBSERVAR',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  letterSpacing: 0.3,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Color(AppColors.errorColor),
-                side: BorderSide(color: Color(AppColors.errorColor)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                foregroundColor: const Color(0xFFEF6B6B),
+                side: const BorderSide(color: Color(0xFFEF6B6B), width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           // Botón Autorizar
           Expanded(
             child: ElevatedButton.icon(
               onPressed: onAutorizar,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('AUTORIZAR'),
+              icon: const Icon(Icons.verified_rounded, size: 20),
+              label: const Text(
+                'AUTORIZAR',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(AppColors.successColor),
+                backgroundColor: p.textoFuerte,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 2,
+                shadowColor: p.textoFuerte.withOpacity(0.4),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),

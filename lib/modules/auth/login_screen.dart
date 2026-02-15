@@ -259,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           },
                                           fillColor: WidgetStateProperty.resolveWith((states) {
                                             if (states.contains(WidgetState.selected)) {
-                                              return Color(AppColors.primaryColor);
+                                              return const Color(0xFF4CAF50);
                                             }
                                             return Colors.white.withOpacity(0.3);
                                           }),
@@ -303,21 +303,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                             borderRadius: BorderRadius.circular(16),
                                             gradient: const LinearGradient(
                                               colors: [
-                                                Color(0xDDFFFFFF),
-                                                Color(0xAAFFFFFF),
+                                                Color(0xFF4CAF50),
+                                                Color(0xFF388E3C),
                                               ],
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.white.withOpacity(0.25),
-                                                blurRadius: 16,
+                                                color: const Color(0xFF4CAF50).withOpacity(0.35),
+                                                blurRadius: 14,
                                                 spreadRadius: 1,
-                                                offset: const Offset(0, 2),
+                                                offset: const Offset(0, 3),
                                               ),
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.08),
+                                                color: Colors.black.withOpacity(0.10),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 4),
                                               ),
@@ -328,8 +328,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                             child: InkWell(
                                               onTap: authService.isLoading ? null : _login,
                                               borderRadius: BorderRadius.circular(16),
-                                              splashColor: Colors.white.withOpacity(0.3),
-                                              highlightColor: Colors.white.withOpacity(0.1),
+                                              splashColor: const Color(0xFF66BB6A).withOpacity(0.4),
+                                              highlightColor: const Color(0xFF81C784).withOpacity(0.3),
                                               child: Padding(
                                                 padding: const EdgeInsets.symmetric(vertical: 18),
                                                 child: Center(
@@ -339,7 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                           width: 20,
                                                           child: CircularProgressIndicator(
                                                             strokeWidth: 2.5,
-                                                            color: Color(0xFF37474F),
+                                                            color: Colors.white,
                                                           ),
                                                         )
                                                       : const Row(
@@ -347,16 +347,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                                           children: [
                                                             Icon(
                                                               Icons.login_rounded,
-                                                              color: Color(0xFF37474F),
-                                                              size: 21,
-                                                            ),
-                                                            SizedBox(width: 10),
-                                                            Text(
-                                                              'Ingresar',
-                                                              style: TextStyle(
-                                                                fontSize: 16,
-                                                                fontWeight: FontWeight.w800,
-                                                                color: Color(0xFF37474F),
+                                                            color: Colors.white,
+                                                            size: 21,
+                                                          ),
+                                                          SizedBox(width: 10),
+                                                          Text(
+                                                            'Ingresar',
+                                                            style: TextStyle(
+                                                              fontSize: 17,
+                                                              fontWeight: FontWeight.w900,
+                                                              color: Colors.white,
                                                                 letterSpacing: 0.8,
                                                               ),
                                                             ),
