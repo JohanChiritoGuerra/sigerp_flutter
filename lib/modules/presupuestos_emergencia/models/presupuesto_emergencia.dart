@@ -1,231 +1,548 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-/// Tipo de presupuesto de emergencia
+// ─── BaseResponse ─────────────────────────────────────────────────────────────
+class BaseResponse {
+  final bool success;
+  final bool exception;
+  final String? tipoException;
+  final String? message;
+  final List<String> errores;
+
+  BaseResponse({
+    required this.success,
+    this.exception = false,
+    this.tipoException,
+    this.message,
+    this.errores = const [],
+  });
+
+  factory BaseResponse.fromJson(Map<String, dynamic> json) => BaseResponse(
+    success:       json['Success']       ?? json['success']       ?? false,
+    exception:     json['Exception']     ?? json['exception']     ?? false,
+    tipoException: json['TipoException'] ?? json['tipoException'],
+    message:       json['Message']       ?? json['message'],
+    errores: ((json['Errores'] ?? json['errores']) as List<dynamic>?)
+            ?.map((e) => e.toString()).toList() ?? [],
+  );
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+/// Tipo de presupuesto — mapeado desde IdSubtipoPresupuesto del SP
 enum TipoPresupuestoEmergencia {
-  consumo,
-  inversiones,
-  servicioTercero;
+  cargasDiversas,    // 5
+  servicioTercero,   // 6
+  consumo,           // 8
+  inversiones;       // 10
 
+  static TipoPresupuestoEmergencia fromIdSubtipo(int? id) {
+    switch (id) {
+      case 5:  return TipoPresupuestoEmergencia.cargasDiversas;
+      case 6:  return TipoPresupuestoEmergencia.servicioTercero;
+      case 8:  return TipoPresupuestoEmergencia.consumo;
+      case 10: return TipoPresupuestoEmergencia.inversiones;
+      default: return TipoPresupuestoEmergencia.consumo;
+    }
+  }
+
+  /// Para compatibilidad con código anterior que usaba String
   static TipoPresupuestoEmergencia fromString(String? value) {
     switch (value?.toUpperCase()) {
-      case 'CONSUMO':
-        return TipoPresupuestoEmergencia.consumo;
-      case 'INVERSIONES':
-        return TipoPresupuestoEmergencia.inversiones;
-      case 'SERVICIO_TERCERO':
-      case 'SERVICIO TERCERO':
-        return TipoPresupuestoEmergencia.servicioTercero;
-      default:
-        return TipoPresupuestoEmergencia.consumo;
+      case 'CARGAS DIVERSAS DE GESTION': return TipoPresupuestoEmergencia.cargasDiversas;
+      case 'SERVICIOS DE TERCERO':       return TipoPresupuestoEmergencia.servicioTercero;
+      case 'CONSUMOS':                   return TipoPresupuestoEmergencia.consumo;
+      case 'INVERSIONES':                return TipoPresupuestoEmergencia.inversiones;
+      default:                           return TipoPresupuestoEmergencia.consumo;
     }
   }
 
   String get label {
     switch (this) {
-      case TipoPresupuestoEmergencia.consumo:
-        return 'PPTO. EMERGENCIA - CONSUMO';
-      case TipoPresupuestoEmergencia.inversiones:
-        return 'PPTO. EMERGENCIA - INVERSIONES';
-      case TipoPresupuestoEmergencia.servicioTercero:
-        return 'PPTO. EMERGENCIA - SERVICIO TERCERO';
+      case TipoPresupuestoEmergencia.cargasDiversas:  return 'PPTO. EMERGENCIA - CARGAS DIVERSAS';
+      case TipoPresupuestoEmergencia.servicioTercero: return 'PPTO. EMERGENCIA - SERVICIO TERCERO';
+      case TipoPresupuestoEmergencia.consumo:         return 'PPTO. EMERGENCIA - CONSUMO';
+      case TipoPresupuestoEmergencia.inversiones:     return 'PPTO. EMERGENCIA - INVERSIONES';
     }
   }
 
   String get labelCorto {
     switch (this) {
-      case TipoPresupuestoEmergencia.consumo:
-        return 'CONSUMO';
-      case TipoPresupuestoEmergencia.inversiones:
-        return 'INVERSIONES';
-      case TipoPresupuestoEmergencia.servicioTercero:
-        return 'SERVICIO TERCERO';
+      case TipoPresupuestoEmergencia.cargasDiversas:  return 'CARGAS DIVERSAS';
+      case TipoPresupuestoEmergencia.servicioTercero: return 'SERVICIO TERCERO';
+      case TipoPresupuestoEmergencia.consumo:         return 'CONSUMO';
+      case TipoPresupuestoEmergencia.inversiones:     return 'INVERSIONES';
     }
   }
 
   IconData get icon {
     switch (this) {
-      case TipoPresupuestoEmergencia.consumo:
-        return Icons.inventory_2_outlined;
-      case TipoPresupuestoEmergencia.inversiones:
-        return Icons.trending_up_rounded;
-      case TipoPresupuestoEmergencia.servicioTercero:
-        return Icons.engineering_outlined;
+      case TipoPresupuestoEmergencia.cargasDiversas:  return Icons.receipt_long_outlined;
+      case TipoPresupuestoEmergencia.servicioTercero: return Icons.engineering_outlined;
+      case TipoPresupuestoEmergencia.consumo:         return Icons.inventory_2_outlined;
+      case TipoPresupuestoEmergencia.inversiones:     return Icons.trending_up_rounded;
     }
   }
 
   Color get iconColor {
     switch (this) {
-      case TipoPresupuestoEmergencia.consumo:
-        return const Color(0xFF2196F3); // Azul
-      case TipoPresupuestoEmergencia.inversiones:
-        return const Color(0xFF9C27B0); // Púrpura
-      case TipoPresupuestoEmergencia.servicioTercero:
-        return const Color(0xFFFF9800); // Naranja
+      case TipoPresupuestoEmergencia.cargasDiversas:  return const Color(0xFF009688);
+      case TipoPresupuestoEmergencia.servicioTercero: return const Color(0xFFFF9800);
+      case TipoPresupuestoEmergencia.consumo:         return const Color(0xFF2196F3);
+      case TipoPresupuestoEmergencia.inversiones:     return const Color(0xFF9C27B0);
     }
   }
 
   Color get iconBgColor {
     switch (this) {
-      case TipoPresupuestoEmergencia.consumo:
-        return const Color(0xFFE3F2FD);
-      case TipoPresupuestoEmergencia.inversiones:
-        return const Color(0xFFF3E5F5);
-      case TipoPresupuestoEmergencia.servicioTercero:
-        return const Color(0xFFFFF3E0);
+      case TipoPresupuestoEmergencia.cargasDiversas:  return const Color(0xFFE0F2F1);
+      case TipoPresupuestoEmergencia.servicioTercero: return const Color(0xFFFFF3E0);
+      case TipoPresupuestoEmergencia.consumo:         return const Color(0xFFE3F2FD);
+      case TipoPresupuestoEmergencia.inversiones:     return const Color(0xFFF3E5F5);
     }
   }
 }
 
-/// Prioridades de presupuesto de emergencia
-enum PrioridadPresupuesto {
-  emergencia,
-  urgente,
-  normal;
-
-  static PrioridadPresupuesto fromString(String? value) {
-    switch (value?.toUpperCase()) {
-      case 'EMERGENCIA':
-        return PrioridadPresupuesto.emergencia;
-      case 'URGENTE':
-        return PrioridadPresupuesto.urgente;
-      case 'NORMAL':
-        return PrioridadPresupuesto.normal;
-      default:
-        return PrioridadPresupuesto.normal;
-    }
-  }
-
-  /// Color rojo unificado para todos los presupuestos de emergencia
-  Color get color => const Color(0xFFF44336);
-
-  /// Color claro rojo unificado
-  Color get colorClaro => const Color(0xFFFFEBEE);
-
-  String get label {
-    switch (this) {
-      case PrioridadPresupuesto.emergencia:
-        return 'EMERGENCIA';
-      case PrioridadPresupuesto.urgente:
-        return 'URGENTE';
-      case PrioridadPresupuesto.normal:
-        return 'NORMAL';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case PrioridadPresupuesto.emergencia:
-        return Icons.error;
-      case PrioridadPresupuesto.urgente:
-        return Icons.warning_amber;
-      case PrioridadPresupuesto.normal:
-        return Icons.info_outline;
-    }
-  }
-}
-
-/// Estados de presupuesto
+/// Estado — mapeado desde EstadoAutorizacion (int) del SP
 enum EstadoPresupuesto {
-  pendiente,
-  autorizado,
-  observado,
-  enProceso,
-  enCola;
+  borrador,    // -1
+  pendiente,   //  0
+  porAutorizar,//  1
+  enRevision,  //  2
+  autorizado,  //  3
+  atendido,    //  4
+  contabilidad,//  5
+  logistica,   //  6
+  observado;   //  cuando fue devuelto
 
-  static EstadoPresupuesto fromString(String? value) {
-    switch (value?.toUpperCase()) {
-      case 'PENDIENTE':
-        return EstadoPresupuesto.pendiente;
-      case 'AUTORIZADO':
-        return EstadoPresupuesto.autorizado;
-      case 'OBSERVADO':
-        return EstadoPresupuesto.observado;
-      case 'EN_PROCESO':
-        return EstadoPresupuesto.enProceso;
-      case 'EN_COLA':
-        return EstadoPresupuesto.enCola;
-      default:
-        return EstadoPresupuesto.pendiente;
+  static EstadoPresupuesto fromEstadoAutorizacion(int? estado) {
+    switch (estado) {
+      case -1: return EstadoPresupuesto.borrador;
+      case 0:  return EstadoPresupuesto.pendiente;
+      case 1:  return EstadoPresupuesto.porAutorizar;
+      case 2:  return EstadoPresupuesto.enRevision;
+      case 3:  return EstadoPresupuesto.autorizado;
+      case 4:  return EstadoPresupuesto.atendido;
+      case 5:  return EstadoPresupuesto.contabilidad;
+      case 6:  return EstadoPresupuesto.logistica;
+      default: return EstadoPresupuesto.pendiente;
     }
   }
 
   String get nombre {
     switch (this) {
-      case EstadoPresupuesto.pendiente:
-        return 'PENDIENTE';
-      case EstadoPresupuesto.autorizado:
-        return 'AUTORIZADO';
-      case EstadoPresupuesto.observado:
-        return 'OBSERVADO';
-      case EstadoPresupuesto.enProceso:
-        return 'EN PROCESO';
-      case EstadoPresupuesto.enCola:
-        return 'EN COLA';
+      case EstadoPresupuesto.borrador:     return 'BORRADOR';
+      case EstadoPresupuesto.pendiente:    return 'PENDIENTE';
+      case EstadoPresupuesto.porAutorizar: return 'POR AUTORIZAR';
+      case EstadoPresupuesto.enRevision:   return 'EN REVISIÓN';
+      case EstadoPresupuesto.autorizado:   return 'AUTORIZADO';
+      case EstadoPresupuesto.atendido:     return 'ATENDIDO';
+      case EstadoPresupuesto.contabilidad: return 'CONTABILIDAD';
+      case EstadoPresupuesto.logistica:    return 'LOGÍSTICA';
+      case EstadoPresupuesto.observado:    return 'OBSERVADO';
     }
   }
 
   Color get color {
     switch (this) {
-      case EstadoPresupuesto.pendiente:
-        return const Color(0xFFFF9800); // Naranja
-      case EstadoPresupuesto.autorizado:
-        return const Color(0xFF4CAF50); // Verde
-      case EstadoPresupuesto.observado:
-        return const Color(0xFFF44336); // Rojo
-      case EstadoPresupuesto.enProceso:
-        return const Color(0xFF2196F3); // Azul
-      case EstadoPresupuesto.enCola:
-        return const Color(0xFF9E9E9E); // Gris
+      case EstadoPresupuesto.borrador:     return const Color(0xFF9E9E9E);
+      case EstadoPresupuesto.pendiente:    return const Color(0xFFFF9800);
+      case EstadoPresupuesto.porAutorizar: return const Color(0xFF03A9F4);
+      case EstadoPresupuesto.enRevision:   return const Color(0xFF2196F3);
+      case EstadoPresupuesto.autorizado:   return const Color(0xFF4CAF50);
+      case EstadoPresupuesto.atendido:     return const Color(0xFF4CAF50);
+      case EstadoPresupuesto.contabilidad: return const Color(0xFF673AB7);
+      case EstadoPresupuesto.logistica:    return const Color(0xFF795548);
+      case EstadoPresupuesto.observado:    return const Color(0xFFF44336);
     }
   }
 
   IconData get icon {
     switch (this) {
-      case EstadoPresupuesto.pendiente:
-        return Icons.hourglass_empty;
-      case EstadoPresupuesto.autorizado:
-        return Icons.check_circle;
-      case EstadoPresupuesto.observado:
-        return Icons.cancel;
-      case EstadoPresupuesto.enProceso:
-        return Icons.pending;
-      case EstadoPresupuesto.enCola:
-        return Icons.pause_circle_outline;
+      case EstadoPresupuesto.borrador:     return Icons.edit_outlined;
+      case EstadoPresupuesto.pendiente:    return Icons.hourglass_empty;
+      case EstadoPresupuesto.porAutorizar: return Icons.pending_outlined;
+      case EstadoPresupuesto.enRevision:   return Icons.find_in_page_outlined;
+      case EstadoPresupuesto.autorizado:   return Icons.check_circle_outline;
+      case EstadoPresupuesto.atendido:     return Icons.task_alt;
+      case EstadoPresupuesto.contabilidad: return Icons.account_balance_outlined;
+      case EstadoPresupuesto.logistica:    return Icons.local_shipping_outlined;
+      case EstadoPresupuesto.observado:    return Icons.cancel_outlined;
     }
   }
 }
 
-/// Solicitante del presupuesto
+/// Prioridad del presupuesto
+enum PrioridadPresupuesto {
+  emergencia,
+  urgente,
+  normal;
+
+  String get nombre {
+    switch (this) {
+      case PrioridadPresupuesto.emergencia: return 'EMERGENCIA';
+      case PrioridadPresupuesto.urgente:    return 'URGENTE';
+      case PrioridadPresupuesto.normal:     return 'NORMAL';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case PrioridadPresupuesto.emergencia: return 'EMERGENCIA';
+      case PrioridadPresupuesto.urgente:    return 'URGENTE';
+      case PrioridadPresupuesto.normal:     return 'NORMAL';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case PrioridadPresupuesto.emergencia: return const Color(0xFFF44336);
+      case PrioridadPresupuesto.urgente:    return const Color(0xFFFF9800);
+      case PrioridadPresupuesto.normal:     return const Color(0xFF4CAF50);
+    }
+  }
+
+  static PrioridadPresupuesto fromString(String? value) {
+    switch (value?.toUpperCase()) {
+      case 'EMERGENCIA': return PrioridadPresupuesto.emergencia;
+      case 'URGENTE':    return PrioridadPresupuesto.urgente;
+      case 'NORMAL':     return PrioridadPresupuesto.normal;
+      default:           return PrioridadPresupuesto.normal;
+    }
+  }
+}
+
+// ─── Lista item (PorAutorizar y Autorizados) ──────────────────────────────────
+class PresupuestoEmergenciaListaItem {
+  final int    idPresupuestoEmergencia;
+  final int    idSubtipoPresupuesto;
+  final bool   esCcMultiple;
+  final String tipo;
+  final String numero;
+  final DateTime fecha;
+  final String usuario;
+  final String area;
+  
+  // Campos adicionales para filtrado
+  final String? codigo;
+  final String? descripcion;
+  final EstadoPresupuesto? estadoActual;
+  final PrioridadPresupuesto? prioridad;
+  final DateTime? fechaSolicitud;
+  final String? nombreSolicitante;
+  final String? seccionSolicitante;
+
+  // Clase anidada para solicitante
+  late final Solicitante? solicitante;
+
+  // Derivados para la UI (no vienen del API, se calculan)
+  TipoPresupuestoEmergencia get tipoEnum =>
+      TipoPresupuestoEmergencia.fromString(tipo);
+
+  PresupuestoEmergenciaListaItem({
+    required this.idPresupuestoEmergencia,
+    required this.idSubtipoPresupuesto,
+    required this.esCcMultiple,
+    required this.tipo,
+    required this.numero,
+    required this.fecha,
+    required this.usuario,
+    required this.area,
+    this.codigo,
+    this.descripcion,
+    this.estadoActual,
+    this.prioridad,
+    this.fechaSolicitud,
+    this.nombreSolicitante,
+    this.seccionSolicitante,
+  }) {
+    // Inicializar solicitante si hay nombres disponibles
+    solicitante = (nombreSolicitante != null || seccionSolicitante != null)
+        ? Solicitante(
+            trabId: '',
+            nombreCompleto: nombreSolicitante ?? '',
+            seccion: seccionSolicitante ?? '',
+            cargo: '',
+          )
+        : null;
+  }
+
+  factory PresupuestoEmergenciaListaItem.fromJson(Map<String, dynamic> json) =>
+      PresupuestoEmergenciaListaItem(
+        idPresupuestoEmergencia: json['idPresupuestoEmergencia'] ?? 0,
+        idSubtipoPresupuesto:    json['idSubtipoPresupuesto']    ?? 0,
+        esCcMultiple:            json['esCcMultiple']            ?? false,
+        tipo:                    json['tipo']                    ?? '',
+        numero:                  json['numero']                  ?? '',
+        fecha:    DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+        usuario:                 json['usuario']                 ?? '',
+        area:                    json['area']                    ?? '',
+        codigo:                  json['codigo'],
+        descripcion:             json['descripcion'],
+        estadoActual: json['estadoActual'] != null
+            ? EstadoPresupuesto.fromEstadoAutorizacion(json['estadoActual'])
+            : null,
+        prioridad: json['prioridad'] != null
+            ? PrioridadPresupuesto.fromString(json['prioridad'])
+            : null,
+        fechaSolicitud: json['fechaSolicitud'] != null
+            ? DateTime.tryParse(json['fechaSolicitud'])
+            : null,
+        nombreSolicitante:    json['nombreSolicitante'],
+        seccionSolicitante:   json['seccionSolicitante'],
+      );
+
+  String get fechaFormateada =>
+      '${fecha.day.toString().padLeft(2, '0')}/'
+      '${fecha.month.toString().padLeft(2, '0')}/'
+      '${fecha.year}';
+}
+
+// ─── Clases auxiliares para PresupuestoEmergencia ────────────────────────────
+class PresupuestoEmergenciaEncabezado {
+  final String    numero;
+  final DateTime? fecha;
+  final String    gds;
+  final String    descripcionGds;
+  final String    area;
+  final String    cc;
+  final String    observacion;
+  final String    usoMotivo;
+
+  PresupuestoEmergenciaEncabezado({
+    required this.numero,
+    this.fecha,
+    required this.gds,
+    required this.descripcionGds,
+    required this.area,
+    required this.cc,
+    required this.observacion,
+    required this.usoMotivo,
+  });
+
+  factory PresupuestoEmergenciaEncabezado.fromJson(
+    Map<String, dynamic> json) =>
+  PresupuestoEmergenciaEncabezado(
+    numero:         json['Numero']         ?? json['numero']         ?? '',
+    fecha: json['Fecha'] != null 
+        ? DateTime.tryParse(json['Fecha'].toString()) 
+        : json['fecha'] != null 
+            ? DateTime.tryParse(json['fecha'].toString()) 
+            : null,
+    gds:            json['Gds']            ?? json['gds']            
+                 ?? json['GDS']            ?? '',
+    descripcionGds: json['DescripcionGds'] ?? json['descripcionGds'] 
+                 ?? json['DescripcionGDS'] ?? '',
+    area:           json['Area']           ?? json['area']           ?? '',
+    cc:             json['Cc']             ?? json['cc']             
+                 ?? json['CC']             ?? '',
+    observacion:    json['Observacion']    ?? json['observacion']    ?? '',
+    usoMotivo:      json['UsoMotivo']      ?? json['usoMotivo']      ?? '',
+  );
+
+  String get fechaFormateada {
+    if (fecha == null) return '';
+    return '${fecha!.day.toString().padLeft(2, '0')}/'
+           '${fecha!.month.toString().padLeft(2, '0')}/'
+           '${fecha!.year}';
+  }
+}
+
+// ─── Item de detalle ──────────────────────────────────────────────────────────
+class PresupuestoEmergenciaDetalleItem {
+  final String  cc;
+  final String  ccDes;
+  final String  item;
+  final String  itemDes;
+  final double  cantidad;
+  final String  und;
+  final String? monedaId;
+  final String? monedaAbrev;
+  final double? montoReferencial;
+  final double? subtotal;
+
+  PresupuestoEmergenciaDetalleItem({
+    required this.cc,
+    required this.ccDes,
+    required this.item,
+    required this.itemDes,
+    required this.cantidad,
+    required this.und,
+    this.monedaId,
+    this.monedaAbrev,
+    this.montoReferencial,
+    this.subtotal,
+  });
+
+  factory PresupuestoEmergenciaDetalleItem.fromJson(
+    Map<String, dynamic> json) =>
+  PresupuestoEmergenciaDetalleItem(
+    cc:               json['Cc']               ?? json['cc']   
+                   ?? json['CC']               ?? '',
+    ccDes:            json['CcDes']            ?? json['ccDes'] 
+                   ?? json['CCDes']            ?? '',
+    item:             json['Item']             ?? json['item']            ?? '',
+    itemDes:          json['ItemDes']          ?? json['itemDes']         ?? '',
+    cantidad:        (json['Cantidad']         ?? json['cantidad'] as num?)
+                         ?.toDouble() ?? 0,
+    und:              json['Und']              ?? json['und']             ?? '',
+    monedaId:         json['MonedaId']         ?? json['monedaId'],
+    monedaAbrev:      json['MonedaAbrev']      ?? json['monedaAbrev']     ?? 'S/.', // ← NUEVO
+    montoReferencial:(json['MontoReferencial'] ?? json['montoReferencial'] as num?)
+                         ?.toDouble(),
+    subtotal:        (json['Subtotal']         ?? json['subtotal'] as num?)
+                         ?.toDouble(),
+  );
+
+  String get monedaSimbolo {
+    if (monedaAbrev == null || monedaAbrev!.isEmpty) return '';
+    // Si es 'S/.' ya viene con el punto, si es '$' queda como está
+    return monedaAbrev!;
+  }
+
+  String get subtotalFormateado {
+    final val = subtotal ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+
+  String get montoReferencialFormateado {
+    final val = montoReferencial ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+
+  // Método de formato con símbolo de moneda
+String _formatNumber(double value, String simbolo) {
+  if (simbolo.isEmpty) {
+    // Si no hay símbolo, solo formatear número
+    final formatter = NumberFormat('#,###.##', 'es_PE');
+    return formatter.format(value);
+  }
+  
+  // Usar NumberFormat con el símbolo correcto
+  // Usar locale 'en_US' para que el símbolo quede a la izquierda
+  final formatter = NumberFormat.currency(
+    locale: 'en_US',  // ← Cambiar a en_US para que el símbolo quede a la izquierda
+    symbol: simbolo,
+    decimalDigits: 2,
+  );
+  return formatter.format(value);
+}
+}
+
+// ─── Response grillas autorización ───────────────────────────────────────────
+class PresupuestoEmergenciaAutorizacionResponse {
+  final BaseResponse baseResponse;
+  final List<PresupuestoEmergenciaListaItem> porAutorizar;
+  final List<PresupuestoEmergenciaListaItem> autorizados;
+
+  PresupuestoEmergenciaAutorizacionResponse({
+    required this.baseResponse,
+    required this.porAutorizar,
+    required this.autorizados,
+  });
+
+  factory PresupuestoEmergenciaAutorizacionResponse.fromJson(
+          Map<String, dynamic> json) =>
+      PresupuestoEmergenciaAutorizacionResponse(
+        baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? {}),
+        porAutorizar: (json['porAutorizar'] as List<dynamic>? ?? [])
+            .map((e) => PresupuestoEmergenciaListaItem.fromJson(e))
+            .toList(),
+        autorizados: (json['autorizados'] as List<dynamic>? ?? [])
+            .map((e) => PresupuestoEmergenciaListaItem.fromJson(e))
+            .toList(),
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
+// ─── Response detalle ─────────────────────────────────────────────────────────
+class PresupuestoEmergenciaDetalleResponse {
+  final BaseResponse baseResponse;
+  final PresupuestoEmergenciaEncabezado? encabezado;
+  final List<PresupuestoEmergenciaDetalleItem> detalle;
+
+  PresupuestoEmergenciaDetalleResponse({
+    required this.baseResponse,
+    this.encabezado,
+    this.detalle = const [],
+  });
+
+  factory PresupuestoEmergenciaDetalleResponse.fromJson(
+    Map<String, dynamic> json) {
+  // Soporta PascalCase (C# default) y camelCase
+    final rawEnc = json['Encabezado'] ?? json['encabezado'];
+    final rawDet = json['Detalle'] ?? json['detalle'] ?? [];
+    final rawBase = json['BaseResponse'] ?? json['baseResponse'] 
+        ?? {'success': json['Success'] ?? json['success'] ?? false};
+
+    return PresupuestoEmergenciaDetalleResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      encabezado: rawEnc != null
+          ? PresupuestoEmergenciaEncabezado.fromJson(rawEnc)
+          : null,
+      detalle: (rawDet as List<dynamic>)
+          .map((e) => PresupuestoEmergenciaDetalleItem.fromJson(e))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+
+  /// Total calculado en el cliente igual que el VB
+  double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
+
+  String get totalFormateado {
+    final valor = total;
+    final simbolo = detalle.isNotEmpty ? detalle.first.monedaSimbolo : '';
+    
+    if (simbolo.isEmpty) {
+      // Forzar 2 decimales
+      return valor.toStringAsFixed(2).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]},',
+      );
+    }
+    
+    // Formatear número con 2 decimales forzados
+    final numeroConDecimales = valor.toStringAsFixed(2);
+    final partes = numeroConDecimales.split('.');
+    final parteEntera = partes[0];
+    final parteDecimal = partes[1];
+    
+    // Agregar separadores de miles a la parte entera
+    final parteEnteraFormateada = parteEntera.replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
+    
+    // Colocar símbolo a la izquierda
+    return '$simbolo $parteEnteraFormateada.$parteDecimal';
+  }
+}
+
+// ─── Clases auxiliares para PresupuestoEmergencia ────────────────────────────
+
+/// Solicitante/Usuario
 class Solicitante {
   final String trabId;
   final String nombreCompleto;
   final String seccion;
-  final String? cargo;
+  final String cargo;
 
   Solicitante({
     required this.trabId,
     required this.nombreCompleto,
     required this.seccion,
-    this.cargo,
+    required this.cargo,
   });
 
-  factory Solicitante.fromJson(Map<String, dynamic> json) {
-    return Solicitante(
-      trabId: json['trabId'] ?? '',
-      nombreCompleto: json['nombreCompleto'] ?? '',
-      seccion: json['seccion'] ?? '',
-      cargo: json['cargo'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'trabId': trabId,
-      'nombreCompleto': nombreCompleto,
-      'seccion': seccion,
-      'cargo': cargo,
-    };
-  }
+  factory Solicitante.fromJson(Map<String, dynamic> json) => Solicitante(
+    trabId:           json['trabId']           ?? '',
+    nombreCompleto:   json['nombreCompleto']   ?? '',
+    seccion:          json['seccion']          ?? '',
+    cargo:            json['cargo']            ?? '',
+  );
 }
 
 /// Item de presupuesto
@@ -240,32 +557,21 @@ class ItemPresupuesto {
     required this.monto,
   });
 
-  factory ItemPresupuesto.fromJson(Map<String, dynamic> json) {
-    return ItemPresupuesto(
-      itemId: json['itemId'] ?? '',
-      descripcion: json['descripcion'] ?? '',
-      monto: (json['monto'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
+  factory ItemPresupuesto.fromJson(Map<String, dynamic> json) => ItemPresupuesto(
+    itemId:      json['itemId']      ?? '',
+    descripcion: json['descripcion'] ?? '',
+    monto:      (json['monto'] as num?)?.toDouble() ?? 0,
+  );
 
-  Map<String, dynamic> toJson() {
-    return {
-      'itemId': itemId,
-      'descripcion': descripcion,
-      'monto': monto,
-    };
-  }
-
-  /// Formato de monto
   String get montoFormateado {
     return monto.toStringAsFixed(2).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 }
 
-/// Historial de autorizaciones
+/// Historial de autorización
 class AutorizacionHistorial {
   final int nivel;
   final String nombreNivel;
@@ -283,47 +589,35 @@ class AutorizacionHistorial {
     this.observacion,
   });
 
-  factory AutorizacionHistorial.fromJson(Map<String, dynamic> json) {
-    return AutorizacionHistorial(
-      nivel: json['nivel'] ?? 0,
-      nombreNivel: json['nombreNivel'] ?? '',
-      autorizador: json['autorizador'] != null
-          ? Solicitante.fromJson(json['autorizador'])
-          : null,
-      estado: EstadoPresupuesto.fromString(json['estado']),
-      fechaAccion: json['fechaAccion'] != null
-          ? DateTime.tryParse(json['fechaAccion'])
-          : null,
-      observacion: json['observacion'],
-    );
-  }
+  factory AutorizacionHistorial.fromJson(Map<String, dynamic> json) => AutorizacionHistorial(
+    nivel:         json['nivel']         ?? 0,
+    nombreNivel:   json['nombreNivel']   ?? '',
+    autorizador: json['autorizador'] != null
+        ? Solicitante.fromJson(json['autorizador'])
+        : null,
+    estado: EstadoPresupuesto.fromEstadoAutorizacion(json['estado']),
+    fechaAccion: json['fechaAccion'] != null
+        ? DateTime.tryParse(json['fechaAccion'])
+        : null,
+    observacion:   json['observacion'],
+  );
 
-  Map<String, dynamic> toJson() {
-    return {
-      'nivel': nivel,
-      'nombreNivel': nombreNivel,
-      'autorizador': autorizador?.toJson(),
-      'estado': estado.nombre,
-      'fechaAccion': fechaAccion?.toIso8601String(),
-      'observacion': observacion,
-    };
-  }
-
-  /// Formato de fecha
   String get fechaFormateada {
     if (fechaAccion == null) return '';
-    final hora = fechaAccion!.hour > 12 ? fechaAccion!.hour - 12 : fechaAccion!.hour;
-    final amPm = fechaAccion!.hour >= 12 ? 'PM' : 'AM';
-    return '${fechaAccion!.day.toString().padLeft(2, '0')}/${fechaAccion!.month.toString().padLeft(2, '0')}/${fechaAccion!.year} • ${hora.toString().padLeft(2, '0')}:${fechaAccion!.minute.toString().padLeft(2, '0')} $amPm';
+    return '${fechaAccion!.day.toString().padLeft(2, '0')}/'
+           '${fechaAccion!.month.toString().padLeft(2, '0')}/'
+           '${fechaAccion!.year} '
+           '${fechaAccion!.hour.toString().padLeft(2, '0')}:'
+           '${fechaAccion!.minute.toString().padLeft(2, '0')}';
   }
 }
 
-/// Modelo principal de Presupuesto de Emergencia
+/// Presupuesto de emergencia completo (para detalle)
 class PresupuestoEmergencia {
   final String presupId;
   final String codigo;
-  final PrioridadPresupuesto prioridad;
   final TipoPresupuestoEmergencia tipoPresupuesto;
+  final PrioridadPresupuesto prioridad;
   final Solicitante solicitante;
   final double montoTotal;
   final DateTime fechaSolicitud;
@@ -331,14 +625,14 @@ class PresupuestoEmergencia {
   final EstadoPresupuesto estadoActual;
   final int nivelAutorizacionActual;
   final bool esmiTurno;
-  final List<ItemPresupuesto>? items;
-  final List<AutorizacionHistorial>? historialAutorizaciones;
+  final List<ItemPresupuesto> items;
+  final List<AutorizacionHistorial> historialAutorizaciones;
 
   PresupuestoEmergencia({
     required this.presupId,
     required this.codigo,
+    required this.tipoPresupuesto,
     required this.prioridad,
-    this.tipoPresupuesto = TipoPresupuestoEmergencia.consumo,
     required this.solicitante,
     required this.montoTotal,
     required this.fechaSolicitud,
@@ -346,97 +640,158 @@ class PresupuestoEmergencia {
     required this.estadoActual,
     required this.nivelAutorizacionActual,
     required this.esmiTurno,
-    this.items,
-    this.historialAutorizaciones,
+    required this.items,
+    required this.historialAutorizaciones,
   });
 
-  factory PresupuestoEmergencia.fromJson(Map<String, dynamic> json) {
-    return PresupuestoEmergencia(
-      presupId: json['presupId'] ?? '',
-      codigo: json['codigo'] ?? '',
-      prioridad: PrioridadPresupuesto.fromString(json['prioridad']),
-      tipoPresupuesto: TipoPresupuestoEmergencia.fromString(json['tipoPresupuesto']),
-      solicitante: Solicitante.fromJson(json['solicitante'] ?? {}),
-      montoTotal: (json['montoTotal'] as num?)?.toDouble() ?? 0.0,
-      fechaSolicitud:
-          DateTime.tryParse(json['fechaSolicitud'] ?? '') ?? DateTime.now(),
-      descripcion: json['descripcion'] ?? '',
-      estadoActual: EstadoPresupuesto.fromString(json['estadoActual']),
-      nivelAutorizacionActual: json['nivelAutorizacionActual'] ?? 1,
-      esmiTurno: json['esmiTurno'] ?? false,
-      items: json['items'] != null
-          ? (json['items'] as List)
-              .map((i) => ItemPresupuesto.fromJson(i))
-              .toList()
-          : null,
-      historialAutorizaciones: json['historialAutorizaciones'] != null
-          ? (json['historialAutorizaciones'] as List)
-              .map((h) => AutorizacionHistorial.fromJson(h))
-              .toList()
-          : null,
+  factory PresupuestoEmergencia.fromJson(Map<String, dynamic> json) => PresupuestoEmergencia(
+    presupId:                    json['presupId']                    ?? '',
+    codigo:                      json['codigo']                      ?? '',
+    tipoPresupuesto: TipoPresupuestoEmergencia.fromString(json['tipoPresupuesto']),
+    prioridad:       PrioridadPresupuesto.fromString(json['prioridad']),
+    solicitante:     Solicitante.fromJson(json['solicitante'] ?? {}),
+    montoTotal:     (json['montoTotal']     as num?)?.toDouble() ?? 0,
+    fechaSolicitud: DateTime.tryParse(json['fechaSolicitud'] ?? '') ?? DateTime.now(),
+    descripcion:                 json['descripcion']                 ?? '',
+    estadoActual:    EstadoPresupuesto.fromEstadoAutorizacion(json['estadoActual']),
+    nivelAutorizacionActual:     json['nivelAutorizacionActual']     ?? 0,
+    esmiTurno:                   json['esmiTurno']                   ?? false,
+    items: (json['items'] as List<dynamic>? ?? [])
+        .map((e) => ItemPresupuesto.fromJson(e))
+        .toList(),
+    historialAutorizaciones: (json['historialAutorizaciones'] as List<dynamic>? ?? [])
+        .map((e) => AutorizacionHistorial.fromJson(e))
+        .toList(),
+  );
+
+  String get fechaFormateada =>
+      '${fechaSolicitud.day.toString().padLeft(2, '0')}/'
+      '${fechaSolicitud.month.toString().padLeft(2, '0')}/'
+      '${fechaSolicitud.year}';
+
+  String get fechaHoraFormateada =>
+      '${fechaSolicitud.day.toString().padLeft(2, '0')}/'
+      '${fechaSolicitud.month.toString().padLeft(2, '0')}/'
+      '${fechaSolicitud.year} '
+      '${fechaSolicitud.hour.toString().padLeft(2, '0')}:'
+      '${fechaSolicitud.minute.toString().padLeft(2, '0')}';
+
+  String get montoCompletoFormateado =>
+      montoTotal.toStringAsFixed(2).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]},',
+      );
+}
+
+/// Response genérica para lista con presupuestos
+class PresupuestoListResponse extends BaseResponse {
+  final List<PresupuestoEmergenciaListaItem> presupuestos;
+  final int totalRegistros;
+
+  PresupuestoListResponse({
+    required bool success,
+    String? message,
+    required this.presupuestos,
+    required this.totalRegistros,
+  }) : super(
+    success: success,
+    message: message,
+  );
+
+  // Constructor alternativo que acepta baseResponse
+  PresupuestoListResponse.fromBaseResponse({
+    required BaseResponse baseResponse,
+    required this.presupuestos,
+    int totalRegistros = 0,
+  }) : totalRegistros = totalRegistros,
+       super(
+         success: baseResponse.success,
+         exception: baseResponse.exception,
+         tipoException: baseResponse.tipoException,
+         message: baseResponse.message,
+         errores: baseResponse.errores,
+       );
+
+  factory PresupuestoListResponse.fromJson(Map<String, dynamic> json) {
+    // Intenta extraer presupuestos del nivel superior o de data
+    List<PresupuestoEmergenciaListaItem> items = [];
+    
+    // Si presupuestos está directamente en json
+    if (json['presupuestos'] is List<dynamic>) {
+      items = (json['presupuestos'] as List<dynamic>)
+          .map((e) => PresupuestoEmergenciaListaItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    // Si presupuestos viene en data
+    else if (json['data'] is Map<String, dynamic> && 
+             (json['data'] as Map<String, dynamic>)['presupuestos'] is List<dynamic>) {
+      final dataMap = json['data'] as Map<String, dynamic>;
+      items = (dataMap['presupuestos'] as List<dynamic>)
+          .map((e) => PresupuestoEmergenciaListaItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    return PresupuestoListResponse(
+      success:         json['success']         ?? false,
+      message:         json['message'],
+      presupuestos:    items,
+      totalRegistros:  json['totalRegistros']  ?? items.length,
     );
   }
+}
 
-  Map<String, dynamic> toJson() {
-    return {
-      'presupId': presupId,
-      'codigo': codigo,
-      'prioridad': prioridad.label,
-      'tipoPresupuesto': tipoPresupuesto.labelCorto,
-      'solicitante': solicitante.toJson(),
-      'montoTotal': montoTotal,
-      'fechaSolicitud': fechaSolicitud.toIso8601String(),
-      'descripcion': descripcion,
-      'estadoActual': estadoActual.nombre,
-      'nivelAutorizacionActual': nivelAutorizacionActual,
-      'esmiTurno': esmiTurno,
-      'items': items?.map((i) => i.toJson()).toList(),
-      'historialAutorizaciones':
-          historialAutorizaciones?.map((h) => h.toJson()).toList(),
-    };
-  }
+/// Response para detalle de presupuesto
+class PresupuestoDetalleResponse extends BaseResponse {
+  final PresupuestoEmergencia? presupuesto;
 
-  /// Tiempo relativo desde la solicitud
-  String get tiempoRelativo {
-    final now = DateTime.now();
-    final difference = now.difference(fechaSolicitud);
+  PresupuestoDetalleResponse({
+    required bool success,
+    String? message,
+    this.presupuesto,
+  }) : super(
+    success: success,
+    message: message,
+  );
 
-    if (difference.inMinutes < 60) {
-      return 'Hace ${difference.inMinutes} minutos';
-    } else if (difference.inHours < 24) {
-      return 'Hace ${difference.inHours} horas';
-    } else {
-      return 'Hace ${difference.inDays} días';
-    }
-  }
+  factory PresupuestoDetalleResponse.fromJson(Map<String, dynamic> json) => PresupuestoDetalleResponse(
+    success:     json['success']     ?? false,
+    message:     json['message'],
+    presupuesto: json['presupuesto'] != null
+        ? PresupuestoEmergencia.fromJson(json['presupuesto'])
+        : null,
+  );
+}
 
-  /// Formato de fecha corta dd/MM/yyyy
-  String get fechaFormateada {
-    return '${fechaSolicitud.day.toString().padLeft(2, '0')}/${fechaSolicitud.month.toString().padLeft(2, '0')}/${fechaSolicitud.year}';
-  }
+/// Response para acciones (autorizar, observar)
+class PresupuestoActionResponse extends BaseResponse {
+  final String presupId;
+  final String estado;
+  final int? siguienteNivel;
+  final bool requiereMasAutorizaciones;
+  final DateTime? fechaAccion;
 
-  /// Formato de fecha completa
-  String get fechaHoraFormateada {
-    final hora = fechaSolicitud.hour > 12
-        ? fechaSolicitud.hour - 12
-        : fechaSolicitud.hour;
-    final amPm = fechaSolicitud.hour >= 12 ? 'PM' : 'AM';
-    return '${fechaSolicitud.day.toString().padLeft(2, '0')}/${fechaSolicitud.month.toString().padLeft(2, '0')}/${fechaSolicitud.year} ${hora.toString().padLeft(2, '0')}:${fechaSolicitud.minute.toString().padLeft(2, '0')} $amPm';
-  }
+  PresupuestoActionResponse({
+    required bool success,
+    String? message,
+    required this.presupId,
+    required this.estado,
+    this.siguienteNivel,
+    this.requiereMasAutorizaciones = false,
+    this.fechaAccion,
+  }) : super(
+    success: success,
+    message: message,
+  );
 
-  /// Formato de monto con separador de miles
-  String get montoFormateado {
-    if (montoTotal >= 1000) {
-      return '${(montoTotal / 1000).toStringAsFixed(1)}K';
-    }
-    return montoTotal.toStringAsFixed(0);
-  }
-
-  /// Formato de monto completo
-  String get montoCompletoFormateado {
-    return montoTotal.toStringAsFixed(2).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
+  factory PresupuestoActionResponse.fromJson(Map<String, dynamic> json) => PresupuestoActionResponse(
+    success:                    json['success']                    ?? false,
+    message:                    json['message'],
+    presupId:                   json['presupId']                   ?? '',
+    estado:                     json['estado']                     ?? '',
+    siguienteNivel:            json['siguienteNivel'],
+    requiereMasAutorizaciones:  json['requiereMasAutorizaciones']  ?? false,
+    fechaAccion: json['fechaAccion'] != null
+        ? DateTime.tryParse(json['fechaAccion'])
+        : null,
+  );
 }

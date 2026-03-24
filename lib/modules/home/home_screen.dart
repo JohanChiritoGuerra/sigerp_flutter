@@ -321,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ModuleCard(
                     icon: Icons.description_outlined,
                     title: 'Ver\nPresupuesto\nEmergencia',
-                    subtitle: 'Ver (${_consultaPresupuesto})',
+                    subtitle: 'Ver ($_consultaPresupuesto)',
                     color: const Color(0xFF9C27B0),
                     onTap: () {
                       Navigator.push(
@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ModuleCard(
                     icon: Icons.shopping_bag_outlined,
                     title: 'Ver\nSolicitud\nCompra',
-                    subtitle: 'Ver (${_consultaSolicitud})',
+                    subtitle: 'Ver ($_consultaSolicitud)',
                     color: Color(AppColors.successColor),
                     onTap: () {
                       Navigator.push(

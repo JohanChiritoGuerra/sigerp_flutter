@@ -5,7 +5,6 @@ import '../../core/utils/constants.dart';
 import 'models/presupuesto_emergencia.dart';
 import 'services/presupuesto_emergencia_service.dart';
 import 'widgets/presupuesto_emergencia_card.dart';
-import 'widgets/presupuesto_detalle_modal.dart';
 
 /// Pantalla de consulta de presupuestos de emergencia (solo lectura)
 /// Permite ver el historial de todos los presupuestos sin opciones de autorización
@@ -24,13 +23,13 @@ class _PresupuestoEmergenciaConsultaScreenState
   final PresupuestoEmergenciaService _service = PresupuestoEmergenciaService();
   final TextEditingController _searchController = TextEditingController();
 
-  List<PresupuestoEmergencia> _todosPresupuestos = [];
-  List<PresupuestoEmergencia> _presupuestosFiltrados = [];
+  List<PresupuestoEmergenciaListaItem> _todosPresupuestos = [];
+  List<PresupuestoEmergenciaListaItem> _presupuestosFiltrados = [];
   bool _isLoading = true;
   String? _error;
   
   // Filtros
-  String _filtroEstado = 'TODOS';
+  final String _filtroEstado = 'TODOS';
   String _filtroPrioridad = 'TODOS';
   DateTimeRange? _rangoFechas;
 
@@ -84,7 +83,7 @@ class _PresupuestoEmergenciaConsultaScreenState
       await Future.delayed(const Duration(milliseconds: 500));
 
       setState(() {
-        _todosPresupuestos = _generarDatosPrueba();
+        _todosPresupuestos = []; // TODO: Cargar desde API
         _aplicarFiltros();
         _isLoading = false;
       });
@@ -97,7 +96,7 @@ class _PresupuestoEmergenciaConsultaScreenState
   }
 
   void _aplicarFiltros() {
-    List<PresupuestoEmergencia> resultado = List.from(_todosPresupuestos);
+    List<PresupuestoEmergenciaListaItem> resultado = List.from(_todosPresupuestos);
 
     // Filtrar por tab (estado)
     switch (_tabController.index) {
@@ -107,7 +106,7 @@ class _PresupuestoEmergenciaConsultaScreenState
         resultado = resultado
             .where((p) =>
                 p.estadoActual == EstadoPresupuesto.pendiente ||
-                p.estadoActual == EstadoPresupuesto.enProceso)
+                p.estadoActual == EstadoPresupuesto.porAutorizar)
             .toList();
         break;
       case 2: // Autorizados
@@ -142,18 +141,19 @@ class _PresupuestoEmergenciaConsultaScreenState
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       resultado = resultado.where((p) {
-        return p.codigo.toLowerCase().contains(query) ||
-            p.descripcion.toLowerCase().contains(query) ||
-            p.solicitante.nombreCompleto.toLowerCase().contains(query) ||
-            p.solicitante.seccion.toLowerCase().contains(query);
+        return (p.codigo?.toLowerCase().contains(query) ?? false) ||
+            (p.descripcion?.toLowerCase().contains(query) ?? false) ||
+            (p.solicitante?.nombreCompleto.toLowerCase().contains(query) ?? false) ||
+            (p.solicitante?.seccion.toLowerCase().contains(query) ?? false);
       }).toList();
     }
 
     // Filtrar por rango de fechas
     if (_rangoFechas != null) {
       resultado = resultado.where((p) {
-        return p.fechaSolicitud.isAfter(_rangoFechas!.start) &&
-            p.fechaSolicitud
+        if (p.fechaSolicitud == null) return false;
+        return p.fechaSolicitud!.isAfter(_rangoFechas!.start) &&
+            p.fechaSolicitud!
                 .isBefore(_rangoFechas!.end.add(const Duration(days: 1)));
       }).toList();
     }
@@ -163,307 +163,25 @@ class _PresupuestoEmergenciaConsultaScreenState
     });
   }
 
-  List<PresupuestoEmergencia> _generarDatosPrueba() {
-    return [
-      PresupuestoEmergencia(
-        presupId: '1',
-        codigo: 'PE-2026-0156',
-        prioridad: PrioridadPresupuesto.emergencia,
-        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
-        solicitante: Solicitante(
-          trabId: '001',
-          nombreCompleto: 'Juan Pérez García',
-          seccion: 'Mantenimiento',
-          cargo: 'Técnico Senior',
-        ),
-        montoTotal: 5250.00,
-        fechaSolicitud: DateTime.now().subtract(const Duration(hours: 2)),
-        descripcion:
-            'Reparación urgente de equipo compresor principal que se encuentra fuera de servicio',
-        estadoActual: EstadoPresupuesto.pendiente,
-        nivelAutorizacionActual: 2,
-        esmiTurno: false,
-        items: [
-          ItemPresupuesto(
-              itemId: '1', descripcion: 'Válvula hidráulica', monto: 2500.00),
-          ItemPresupuesto(
-              itemId: '2', descripcion: 'Mano de obra', monto: 1800.00),
-          ItemPresupuesto(
-              itemId: '3', descripcion: 'Repuestos varios', monto: 950.00),
-        ],
-        historialAutorizaciones: [
-          AutorizacionHistorial(
-            nivel: 1,
-            nombreNivel: 'Jefe Sección',
-            autorizador: Solicitante(
-              trabId: '010',
-              nombreCompleto: 'José Martínez',
-              seccion: 'Mantenimiento',
-              cargo: 'Jefe de Sección',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(hours: 1)),
-            observacion: null,
-          ),
-          AutorizacionHistorial(
-            nivel: 2,
-            nombreNivel: 'Jefe Departamento',
-            autorizador: null,
-            estado: EstadoPresupuesto.pendiente,
-            fechaAccion: null,
-            observacion: null,
-          ),
-        ],
-      ),
-      PresupuestoEmergencia(
-        presupId: '2',
-        codigo: 'PE-2026-0155',
-        prioridad: PrioridadPresupuesto.urgente,
-        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
-        solicitante: Solicitante(
-          trabId: '002',
-          nombreCompleto: 'María López Torres',
-          seccion: 'Producción',
-          cargo: 'Supervisora',
-        ),
-        montoTotal: 3800.00,
-        fechaSolicitud: DateTime.now().subtract(const Duration(hours: 5)),
-        descripcion: 'Cambio de rodamientos en faja transportadora principal',
-        estadoActual: EstadoPresupuesto.autorizado,
-        nivelAutorizacionActual: 3,
-        esmiTurno: false,
-        items: [
-          ItemPresupuesto(
-              itemId: '1', descripcion: 'Rodamientos SKF', monto: 2200.00),
-          ItemPresupuesto(
-              itemId: '2',
-              descripcion: 'Instalación y calibración',
-              monto: 1600.00),
-        ],
-        historialAutorizaciones: [
-          AutorizacionHistorial(
-            nivel: 1,
-            nombreNivel: 'Jefe Sección',
-            autorizador: Solicitante(
-              trabId: '011',
-              nombreCompleto: 'Roberto Sánchez',
-              seccion: 'Producción',
-              cargo: 'Jefe de Sección',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(hours: 4)),
-            observacion: null,
-          ),
-          AutorizacionHistorial(
-            nivel: 2,
-            nombreNivel: 'Jefe Departamento',
-            autorizador: Solicitante(
-              trabId: '012',
-              nombreCompleto: 'Carlos Ramírez',
-              seccion: 'Operaciones',
-              cargo: 'Jefe de Departamento',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(hours: 3)),
-            observacion: 'Aprobado por urgencia operativa',
-          ),
-          AutorizacionHistorial(
-            nivel: 3,
-            nombreNivel: 'Gerencia',
-            autorizador: Solicitante(
-              trabId: '013',
-              nombreCompleto: 'Luis García',
-              seccion: 'Gerencia General',
-              cargo: 'Gerente',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(hours: 2)),
-            observacion: null,
-          ),
-        ],
-      ),
-      PresupuestoEmergencia(
-        presupId: '3',
-        codigo: 'PE-2026-0154',
-        prioridad: PrioridadPresupuesto.normal,
-        tipoPresupuesto: TipoPresupuestoEmergencia.servicioTercero,
-        solicitante: Solicitante(
-          trabId: '003',
-          nombreCompleto: 'Pedro Castillo Vega',
-          seccion: 'Almacén',
-          cargo: 'Coordinador',
-        ),
-        montoTotal: 1200.00,
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 1)),
-        descripcion: 'Reparación de montacargas auxiliar del almacén',
-        estadoActual: EstadoPresupuesto.observado,
-        nivelAutorizacionActual: 1,
-        esmiTurno: false,
-        items: [
-          ItemPresupuesto(
-              itemId: '1', descripcion: 'Batería montacargas', monto: 800.00),
-          ItemPresupuesto(
-              itemId: '2', descripcion: 'Mano de obra', monto: 400.00),
-        ],
-        historialAutorizaciones: [
-          AutorizacionHistorial(
-            nivel: 1,
-            nombreNivel: 'Jefe Sección',
-            autorizador: Solicitante(
-              trabId: '014',
-              nombreCompleto: 'Ana Torres',
-              seccion: 'Logística',
-              cargo: 'Jefe de Sección',
-            ),
-            estado: EstadoPresupuesto.observado,
-            fechaAccion: DateTime.now().subtract(const Duration(hours: 20)),
-            observacion:
-                'Se requiere cotización de al menos 2 proveedores adicionales',
-          ),
-        ],
-      ),
-      PresupuestoEmergencia(
-        presupId: '4',
-        codigo: 'PE-2026-0153',
-        prioridad: PrioridadPresupuesto.emergencia,
-        tipoPresupuesto: TipoPresupuestoEmergencia.consumo,
-        solicitante: Solicitante(
-          trabId: '004',
-          nombreCompleto: 'Rosa Mendoza Díaz',
-          seccion: 'Calidad',
-          cargo: 'Analista',
-        ),
-        montoTotal: 8500.00,
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 2)),
-        descripcion:
-            'Calibración urgente de equipos de laboratorio por auditoría externa',
-        estadoActual: EstadoPresupuesto.autorizado,
-        nivelAutorizacionActual: 3,
-        esmiTurno: false,
-        items: [
-          ItemPresupuesto(
-              itemId: '1',
-              descripcion: 'Calibración espectrofotómetro',
-              monto: 3500.00),
-          ItemPresupuesto(
-              itemId: '2', descripcion: 'Calibración pH-metro', monto: 1500.00),
-          ItemPresupuesto(
-              itemId: '3',
-              descripcion: 'Calibración balanzas analíticas',
-              monto: 2000.00),
-          ItemPresupuesto(
-              itemId: '4',
-              descripcion: 'Certificados y documentación',
-              monto: 1500.00),
-        ],
-        historialAutorizaciones: [
-          AutorizacionHistorial(
-            nivel: 1,
-            nombreNivel: 'Jefe Sección',
-            autorizador: Solicitante(
-              trabId: '015',
-              nombreCompleto: 'Miguel Vargas',
-              seccion: 'Calidad',
-              cargo: 'Jefe de Sección',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(days: 2)),
-            observacion: 'Urgente por auditoría programada',
-          ),
-          AutorizacionHistorial(
-            nivel: 2,
-            nombreNivel: 'Jefe Departamento',
-            autorizador: Solicitante(
-              trabId: '016',
-              nombreCompleto: 'Patricia Luna',
-              seccion: 'Gestión de Calidad',
-              cargo: 'Jefe de Departamento',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(days: 2)),
-            observacion: null,
-          ),
-          AutorizacionHistorial(
-            nivel: 3,
-            nombreNivel: 'Gerencia',
-            autorizador: Solicitante(
-              trabId: '017',
-              nombreCompleto: 'Fernando Rosas',
-              seccion: 'Gerencia General',
-              cargo: 'Gerente',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion:
-                DateTime.now().subtract(const Duration(days: 1, hours: 22)),
-            observacion: null,
-          ),
-        ],
-      ),
-      PresupuestoEmergencia(
-        presupId: '5',
-        codigo: 'PE-2026-0152',
-        prioridad: PrioridadPresupuesto.urgente,
-        tipoPresupuesto: TipoPresupuestoEmergencia.inversiones,
-        solicitante: Solicitante(
-          trabId: '005',
-          nombreCompleto: 'Diego Flores Rivera',
-          seccion: 'Seguridad',
-          cargo: 'Supervisor',
-        ),
-        montoTotal: 4200.00,
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 3)),
-        descripcion: 'Reparación de sistema de cámaras de vigilancia del perímetro norte',
-        estadoActual: EstadoPresupuesto.enProceso,
-        nivelAutorizacionActual: 2,
-        esmiTurno: false,
-        items: [
-          ItemPresupuesto(
-              itemId: '1', descripcion: 'DVR 16 canales', monto: 1800.00),
-          ItemPresupuesto(
-              itemId: '2', descripcion: 'Cámaras domo HD (x4)', monto: 1600.00),
-          ItemPresupuesto(
-              itemId: '3', descripcion: 'Instalación y cableado', monto: 800.00),
-        ],
-        historialAutorizaciones: [
-          AutorizacionHistorial(
-            nivel: 1,
-            nombreNivel: 'Jefe Sección',
-            autorizador: Solicitante(
-              trabId: '018',
-              nombreCompleto: 'Julio Campos',
-              seccion: 'Seguridad',
-              cargo: 'Jefe de Sección',
-            ),
-            estado: EstadoPresupuesto.autorizado,
-            fechaAccion: DateTime.now().subtract(const Duration(days: 3)),
-            observacion: null,
-          ),
-          AutorizacionHistorial(
-            nivel: 2,
-            nombreNivel: 'Jefe Departamento',
-            autorizador: null,
-            estado: EstadoPresupuesto.pendiente,
-            fechaAccion: null,
-            observacion: null,
-          ),
-        ],
-      ),
-    ];
-  }
+  // TODO: Reemplazar con datos reales del API
+  // List<PresupuestoEmergenciaListaItem> _generarDatosPrueba() {
+  //   return [];
+  // }
 
-  void _mostrarDetallePresupuesto(PresupuestoEmergencia presupuesto) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => PresupuestoDetalleModal(
-        presupuesto: presupuesto,
-        mostrarAcciones: false,
-        modoConsulta: true, // Solo lectura
-        onAutorizar: null,
-        onObservar: null,
-      ),
-    );
+  void _mostrarDetallePresupuesto(PresupuestoEmergenciaListaItem presupuesto) {
+    // TODO: Implementar modal de detalles con datos reales del API
+    // showModalBottomSheet(
+    //   context: context,
+    //   isScrollControlled: true,
+    //   backgroundColor: Colors.transparent,
+    //   builder: (context) => PresupuestoDetalleModal(
+    //     presupuesto: presupuesto,
+    //     mostrarAcciones: false,
+    //     modoConsulta: true,
+    //     onAutorizar: null,
+    //     onObservar: null,
+    //   ),
+    // );
   }
 
   void _mostrarFiltros() {
@@ -788,7 +506,7 @@ class _PresupuestoEmergenciaConsultaScreenState
                         _buildBadge(_todosPresupuestos
                             .where((p) =>
                                 p.estadoActual == EstadoPresupuesto.pendiente ||
-                                p.estadoActual == EstadoPresupuesto.enProceso)
+                                p.estadoActual == EstadoPresupuesto.porAutorizar)
                             .length),
                       ],
                     ),

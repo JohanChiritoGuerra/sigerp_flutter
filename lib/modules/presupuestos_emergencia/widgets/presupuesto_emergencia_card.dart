@@ -17,7 +17,7 @@ class _CardPastel {
 }
 
 class PresupuestoEmergenciaCard extends StatelessWidget {
-  final PresupuestoEmergencia presupuesto;
+  final PresupuestoEmergenciaListaItem presupuesto;
   final VoidCallback onTap;
   final bool mostrarEstado;
 
@@ -28,8 +28,14 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
     this.mostrarEstado = false,
   });
 
-  // Paleta pastel según tipo
+  // CORRECCIÓN 1: Agregar el tipo faltante cargasDiversas
   static const Map<TipoPresupuestoEmergencia, _CardPastel> _paleta = {
+    TipoPresupuestoEmergencia.cargasDiversas: _CardPastel(
+      acento: Color(0xFF009688),       // Verde azulado
+      fondoIcono: Color(0xFFE0F2F1),
+      fondoMonto: Color(0xFFE8F5E9),
+      textoMonto: Color(0xFF00695C),
+    ),
     TipoPresupuestoEmergencia.consumo: _CardPastel(
       acento: Color(0xFFAB7AE0),       // Morado pastel
       fondoIcono: Color(0xFFF3ECFC),
@@ -52,7 +58,8 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pastel = _paleta[presupuesto.tipoPresupuesto]!;
+    // CORRECCIÓN 2: Usar tipoEnum en lugar de tipoPresupuesto
+    final pastel = _paleta[presupuesto.tipoEnum]!;
 
     return Card(
       elevation: 0,
@@ -98,7 +105,8 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              presupuesto.tipoPresupuesto.icon,
+                              // CORRECCIÓN 3: Usar tipoEnum.icon
+                              presupuesto.tipoEnum.icon,
                               color: pastel.acento,
                               size: 16,
                             ),
@@ -110,7 +118,8 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  presupuesto.tipoPresupuesto.label,
+                                  // CORRECCIÓN 4: Usar tipoEnum.labelCorto o label según prefieras
+                                  presupuesto.tipoEnum.labelCorto,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -122,7 +131,8 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 1),
                                 Text(
-                                  '#${presupuesto.codigo}',
+                                  // CORRECCIÓN 5: Usar numero en lugar de codigo
+                                  '#${presupuesto.numero}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
@@ -168,7 +178,8 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        presupuesto.solicitante.nombreCompleto,
+                                        // CORRECCIÓN 6: Usar usuario en lugar de solicitante.nombreCompleto
+                                        presupuesto.usuario,
                                         style: const TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w500,
@@ -185,11 +196,15 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                                   children: [
                                     Icon(Icons.domain_rounded, size: 12, color: Colors.grey[400]),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      presupuesto.solicitante.seccion,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey[500],
+                                    Expanded(  // ← Agregar Expanded aquí también
+                                      child: Text(
+                                        _truncarArea(presupuesto.area), // ← Usar función para truncar
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[500],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -198,20 +213,17 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          // Monto con chip pastel
+                          // Icono de tipo con fondo
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: pastel.fondoMonto,
-                              borderRadius: BorderRadius.circular(8),
+                              color: pastel.fondoIcono,
+                              shape: BoxShape.circle,
                             ),
-                            child: Text(
-                              'S/ ${presupuesto.montoCompletoFormateado}',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: pastel.textoMonto,
-                              ),
+                            child: Icon(
+                              presupuesto.tipoEnum.icon,
+                              color: pastel.acento,
+                              size: 14,
                             ),
                           ),
                         ],
@@ -233,24 +245,39 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
     );
   }
 
+  String _truncarArea(String area) {
+    if (area.contains('-')) {
+      final partes = area.split('-');
+      return partes.last.trim();
+    }
+    // Si es muy larga, truncar
+    if (area.length > 40) {
+      return '${area.substring(0, 27)}...';
+    }
+    return area;
+  }
+
   Widget _buildEstadoBadge() {
+    // CORRECCIÓN 8: Manejar el caso null del estado
+    final estado = presupuesto.estadoActual ?? EstadoPresupuesto.pendiente;
+    
     Color color;
     Color bgColor;
     IconData icon;
     String texto;
 
-    switch (presupuesto.estadoActual) {
+    switch (estado) {
       case EstadoPresupuesto.pendiente:
         color = const Color(0xFFE6A23C);
         bgColor = const Color(0xFFFFF8ED);
         icon = Icons.schedule_rounded;
         texto = 'PENDIENTE';
         break;
-      case EstadoPresupuesto.enProceso:
+      case EstadoPresupuesto.enRevision:
         color = const Color(0xFF5B8DEF);
         bgColor = const Color(0xFFEDF3FF);
         icon = Icons.sync_rounded;
-        texto = 'EN PROCESO';
+        texto = 'EN REVISIÓN';
         break;
       case EstadoPresupuesto.autorizado:
         color = const Color(0xFF67C23A);
@@ -264,33 +291,64 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
         icon = Icons.info_outline_rounded;
         texto = 'OBSERVADO';
         break;
-      case EstadoPresupuesto.enCola:
+      case EstadoPresupuesto.porAutorizar:
         color = const Color(0xFF909399);
         bgColor = const Color(0xFFF4F4F5);
         icon = Icons.pause_circle_outline_rounded;
-        texto = 'EN COLA';
+        texto = 'POR AUTORIZAR';
+        break;
+      case EstadoPresupuesto.borrador:
+        color = const Color(0xFF909399);
+        bgColor = const Color(0xFFF4F4F5);
+        icon = Icons.edit_outlined;
+        texto = 'BORRADOR';
+        break;
+      case EstadoPresupuesto.atendido:
+        color = const Color(0xFF67C23A);
+        bgColor = const Color(0xFFEFF8EA);
+        icon = Icons.task_alt;
+        texto = 'ATENDIDO';
+        break;
+      case EstadoPresupuesto.contabilidad:
+        color = const Color(0xFF673AB7);
+        bgColor = const Color(0xFFF3E5F5);
+        icon = Icons.account_balance_outlined;
+        texto = 'CONTABILIDAD';
+        break;
+      case EstadoPresupuesto.logistica:
+        color = const Color(0xFF795548);
+        bgColor = const Color(0xFFD7CCC8);
+        icon = Icons.local_shipping_outlined;
+        texto = 'LOGÍSTICA';
         break;
     }
 
     return Align(
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft, // ← Cambiar de center a centerLeft
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(6),
         ),
+        constraints: const BoxConstraints(
+          maxWidth: 120, // ← Agregar ancho máximo
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 4),
-            Text(
-              texto,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: color,
+            Flexible( // ← Usar Flexible para que el texto se ajuste
+              child: Text(
+                texto,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                overflow: TextOverflow.ellipsis, // ← Agregar overflow
+                maxLines: 1,
               ),
             ),
           ],

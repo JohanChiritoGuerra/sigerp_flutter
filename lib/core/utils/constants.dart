@@ -14,26 +14,27 @@ class AppConfig {
   
   // Obtener la URL base según el entorno
   static String get apiBaseUrl {
-    switch (_currentEnvironment) {
-      case Environment.development:
-        // Todos usan la API de producción por defecto
-        return 'https://api.andahuasi.pe/';
-      case Environment.staging:
-        return 'https://staging.api.andahuasi.pe/';
-      case Environment.production:
-        return 'https://api.andahuasi.pe/';
+  switch (_currentEnvironment) {
+    case Environment.development:
+      return kIsWeb
+          ? 'https://localhost:7255/'
+          : 'https://192.168.100.101:7255/';
+    case Environment.staging:
+      return 'https://staging.api.andahuasi.pe/';
+    case Environment.production:
+      return 'https://api.andahuasi.pe/';
     }
   }
   
   // URL para Web específicamente (siempre usa el dominio para CORS)
   static String get webApiBaseUrl {
-    switch (_currentEnvironment) {
-      case Environment.development:
-        return 'https://api.andahuasi.pe/';
-      case Environment.staging:
-        return 'https://staging.api.andahuasi.pe/';
-      case Environment.production:
-        return 'https://api.andahuasi.pe/';
+  switch (_currentEnvironment) {
+    case Environment.development:
+      return 'https://localhost:7255/';
+    case Environment.staging:
+      return 'https://staging.api.andahuasi.pe/';
+    case Environment.production:
+      return 'https://api.andahuasi.pe/';
     }
   }
   

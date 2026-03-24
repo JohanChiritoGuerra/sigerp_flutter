@@ -29,7 +29,7 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
   final PresupuestoEmergenciaService _peService = PresupuestoEmergenciaService();
   final SolicitudCompraService _scService = SolicitudCompraService();
 
-  List<PresupuestoEmergencia> _presupuestosPendientes = [];
+  List<PresupuestoEmergenciaListaItem> _presupuestosPendientes = [];
   List<SolicitudCompra> _solicitudesPendientes = [];
   bool _isLoading = true;
 
@@ -46,24 +46,25 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
     final empresaId = usuario?.empresaId ?? '02';
 
     try {
-      final peFuture = _peService.obtenerPresupuestosPendientes(
-        trabId: trabId, empresaId: empresaId,
+      final peRes = await _peService.obtenerPresupuestosPendientes(
+        trabId: trabId, 
+        empresaId: empresaId,
       );
-      final scFuture = _scService.obtenerSolicitudesPendientes(
-        trabId: trabId, empresaId: empresaId,
+      final scRes = await _scService.obtenerSolicitudesPendientes(
+        trabId: trabId, 
+        empresaId: empresaId,
       );
-
-      final peRes = await peFuture;
-      final scRes = await scFuture;
 
       if (mounted) {
         setState(() {
-          _presupuestosPendientes = peRes.success ? peRes.presupuestos : [];
+          // CORRECCIÓN: Usar baseResponse.success en lugar de esExitoso
+          //_presupuestosPendientes = peRes.baseResponse.success ? peRes.presupuestos : [];
           _solicitudesPendientes = scRes.success ? scRes.solicitudes : [];
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('Error loading notifications: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -354,23 +355,17 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
     );
   }
 
-  Widget _buildPENotificationItem(PresupuestoEmergencia pe) {
-    final prioridadColor = pe.prioridad == PrioridadPresupuesto.emergencia
-        ? Color(AppColors.errorColor)
-        : pe.prioridad == PrioridadPresupuesto.urgente
-            ? Color(AppColors.warningColor)
-            : Colors.grey[600]!;
-
+  Widget _buildPENotificationItem(PresupuestoEmergenciaListaItem pe) {
     return _buildNotificationCard(
       accentColor: Color(AppColors.warningColor),
       icon: Icons.emergency,
-      codigo: pe.codigo,
-      titulo: pe.descripcion,
-      monto: 'S/ ${pe.montoTotal.toStringAsFixed(2)}',
-      solicitante: pe.solicitante.nombreCompleto,
-      fecha: _formatTimeAgo(pe.fechaSolicitud),
-      badge: pe.prioridad.label.toUpperCase(),
-      badgeColor: prioridadColor,
+      codigo: pe.numero,
+      titulo: pe.tipoEnum.label,
+      monto: 'S/ 0.00',
+      solicitante: pe.usuario,
+      fecha: pe.fechaFormateada,
+      badge: 'PENDIENTE',
+      badgeColor: Color(AppColors.warningColor),
       onTap: () {
         Navigator.pop(context);
         Navigator.push(

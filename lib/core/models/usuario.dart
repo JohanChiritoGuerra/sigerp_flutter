@@ -1,3 +1,6 @@
+
+import 'package:sigerp_flutter/core/models/login_sigerp_response.dart';
+
 class Usuario {
   final String? webUser;
   final String? usuaId;
@@ -116,6 +119,25 @@ class Usuario {
       contLabFecFin: contLabFecFin ?? this.contLabFecFin,
       estado: estado ?? this.estado,
       token: token ?? this.token,
+    );
+  }
+
+  factory Usuario.fromLoginSigerp(LoginSigerpResponse r) {
+    return Usuario(
+      webUser: r.usuaId,
+      usuaId: r.usuaId,
+      apellidoPaterno: r.apellidoPaterno,
+      apellidoMaterno: r.apellidoMaterno,
+      nombres: r.nombres,
+      dni: r.dni,
+      direccion: r.direccion,
+      parametros: r.parametros,
+      trabId: r.trabId,
+      empresaId: r.empresaId,
+      contLabFecInicio: r.contLabFecInicio,
+      contLabFecFin: r.contLabFecFin,
+      estado: r.estado,
+      token: r.token,
     );
   }
 }

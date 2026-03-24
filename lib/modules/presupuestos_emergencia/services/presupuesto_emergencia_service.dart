@@ -4,6 +4,83 @@ import '../../../core/services/api_service.dart';
 class PresupuestoEmergenciaService {
   final ApiService _apiService = ApiService();
 
+  /// Tab 1 → PorAutorizar / Tab 2 → Autorizados
+  Future<PresupuestoEmergenciaAutorizacionResponse> obtenerListasAutorizacion({
+    required String usuario,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        'api/presupuesto-emergencia/grillas/autorizacion',
+        queryParams: {
+          'usuario': usuario,
+          'empresaId': empresaId,
+        },
+      );
+
+      // Normaliza por si tu API devuelve data/envuelto
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'porAutorizar': data['porAutorizar'] ?? response['porAutorizar'] ?? [],
+        'autorizados': data['autorizados'] ?? response['autorizados'] ?? [],
+      };
+
+      return PresupuestoEmergenciaAutorizacionResponse.fromJson(normalized);
+    } catch (e) {
+      return PresupuestoEmergenciaAutorizacionResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        porAutorizar: const [],
+        autorizados: const [],
+      );
+    }
+  }
+
+  /// Detalle para el diálogo
+  Future<PresupuestoEmergenciaDetalleResponse> obtenerDetalle({
+    required int id,
+    required int idSubtipo,
+    required String usuario,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        'api/presupuesto-emergencia/$id/detalle',
+        queryParams: {
+          'idSubtipo': idSubtipo.toString(),
+          'usuario': usuario,
+          'empresaId': empresaId,
+        },
+      );
+
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'encabezado': data['encabezado'] ?? response['encabezado'],
+        'detalle': data['detalle'] ?? response['detalle'] ?? [],
+      };
+
+      return PresupuestoEmergenciaDetalleResponse.fromJson(normalized);
+    } catch (e) {
+      return PresupuestoEmergenciaDetalleResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        detalle: const [],
+      );
+    }
+  }
+
   /// Obtiene lista de presupuestos pendientes de autorización
   Future<PresupuestoListResponse> obtenerPresupuestosPendientes({
     required String trabId,
@@ -26,7 +103,8 @@ class PresupuestoEmergenciaService {
       return PresupuestoListResponse(
         success: false,
         message: 'Error al obtener presupuestos: $e',
-        presupuestos: [],
+        presupuestos: const [],
+        totalRegistros: 0,
       );
     }
   }
@@ -51,13 +129,14 @@ class PresupuestoEmergenciaService {
       return PresupuestoListResponse(
         success: false,
         message: 'Error al obtener presupuestos: $e',
-        presupuestos: [],
+        presupuestos: const [],
+        totalRegistros: 0,
       );
     }
   }
 
   /// Obtiene el detalle completo de un presupuesto
-  Future<PresupuestoDetalleResponse> obtenerDetalle({
+  Future<PresupuestoDetalleResponse> obtenerDetalle1({
     required String presupId,
     required String trabId,
     required String empresaId,
@@ -104,8 +183,10 @@ class PresupuestoEmergenciaService {
       return PresupuestoActionResponse.fromJson(response);
     } catch (e) {
       return PresupuestoActionResponse(
-        success: false,
-        message: 'Error al autorizar: $e',
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al autorizar: $e',
+        ),
       );
     }
   }
@@ -133,83 +214,59 @@ class PresupuestoEmergenciaService {
       return PresupuestoActionResponse.fromJson(response);
     } catch (e) {
       return PresupuestoActionResponse(
-        success: false,
-        message: 'Error al observar: $e',
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al observar: $e',
+        ),
       );
     }
   }
 }
 
-/// Respuesta de lista de presupuestos
-class PresupuestoListResponse {
-  final bool success;
-  final String? message;
-  final List<PresupuestoEmergencia> presupuestos;
+/// Respuesta genérica para listas de presupuestos
+class PresupuestoEmergenciaListaResponse {
+  final BaseResponse baseResponse;
+  final List<PresupuestoEmergenciaListaItem> presupuestos;
   final int totalRegistros;
   final int paginaActual;
   final int totalPaginas;
 
-  PresupuestoListResponse({
-    required this.success,
-    this.message,
+  PresupuestoEmergenciaListaResponse({
+    required this.baseResponse,
     required this.presupuestos,
     this.totalRegistros = 0,
     this.paginaActual = 1,
     this.totalPaginas = 1,
   });
 
-  factory PresupuestoListResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
-    List<PresupuestoEmergencia> presupuestos = [];
+  factory PresupuestoEmergenciaListaResponse.fromJson(Map<String, dynamic> json) {
+    final data = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : json;
 
-    if (data != null && data['presupuestos'] != null) {
-      presupuestos = (data['presupuestos'] as List)
-          .map((p) => PresupuestoEmergencia.fromJson(p))
-          .toList();
-    }
+    final rawItems = data['presupuestos'] ?? data['items'] ?? data['lista'] ?? [];
 
-    return PresupuestoListResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      presupuestos: presupuestos,
-      totalRegistros: data?['totalRegistros'] ?? presupuestos.length,
-      paginaActual: data?['paginaActual'] ?? 1,
-      totalPaginas: data?['totalPaginas'] ?? 1,
+    final items = (rawItems as List<dynamic>? ?? [])
+        .map((e) => PresupuestoEmergenciaListaItem.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ))
+        .toList();
+
+    return PresupuestoEmergenciaListaResponse(
+      baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? json),
+      presupuestos: items,
+      totalRegistros: (data['totalRegistros'] ?? items.length) as int,
+      paginaActual: (data['paginaActual'] ?? 1) as int,
+      totalPaginas: (data['totalPaginas'] ?? 1) as int,
     );
   }
 
-  bool get esExitoso => success;
+  bool get esExitoso => baseResponse.success;
 }
 
-/// Respuesta de detalle de presupuesto
-class PresupuestoDetalleResponse {
-  final bool success;
-  final String? message;
-  final PresupuestoEmergencia? presupuesto;
-
-  PresupuestoDetalleResponse({
-    required this.success,
-    this.message,
-    this.presupuesto,
-  });
-
-  factory PresupuestoDetalleResponse.fromJson(Map<String, dynamic> json) {
-    return PresupuestoDetalleResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      presupuesto: json['data'] != null
-          ? PresupuestoEmergencia.fromJson(json['data'])
-          : null,
-    );
-  }
-
-  bool get esExitoso => success;
-}
-
-/// Respuesta de acciones (autorizar/observar)
+/// Respuesta de acciones (autorizar / observar)
 class PresupuestoActionResponse {
-  final bool success;
-  final String? message;
+  final BaseResponse baseResponse;
   final String? presupId;
   final String? estado;
   final int? siguienteNivel;
@@ -217,8 +274,7 @@ class PresupuestoActionResponse {
   final DateTime? fechaAccion;
 
   PresupuestoActionResponse({
-    required this.success,
-    this.message,
+    required this.baseResponse,
     this.presupId,
     this.estado,
     this.siguienteNivel,
@@ -227,21 +283,66 @@ class PresupuestoActionResponse {
   });
 
   factory PresupuestoActionResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
+    final data = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final fecha = data['fechaAutorizacion'] ?? data['fechaObservacion'];
+
     return PresupuestoActionResponse(
+      baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? json),
+      presupId: data['presupId']?.toString(),
+      estado: data['estado']?.toString(),
+      siguienteNivel: (data['siguienteNivel'] as num?)?.toInt(),
+      requiereMasAutorizaciones: data['requiereMasAutorizaciones'] as bool?,
+      fechaAccion: fecha != null ? DateTime.tryParse(fecha.toString()) : null,
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+}
+
+/// Respuesta de detalle de presupuesto
+class PresupuestoDetalleResponse {
+  final bool success;
+  final String? message;
+  final PresupuestoEmergenciaEncabezado? encabezado;
+  final List<PresupuestoEmergenciaDetalleItem> detalle;
+
+  PresupuestoDetalleResponse({
+    required this.success,
+    this.message,
+    this.encabezado,
+    this.detalle = const [],
+  });
+
+  factory PresupuestoDetalleResponse.fromJson(Map<String, dynamic> json) {
+    final data = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    return PresupuestoDetalleResponse(
       success: json['success'] ?? false,
-      message: json['message'],
-      presupId: data?['presupId'],
-      estado: data?['estado'],
-      siguienteNivel: data?['siguienteNivel'],
-      requiereMasAutorizaciones: data?['requiereMasAutorizaciones'],
-      fechaAccion: data?['fechaAutorizacion'] != null
-          ? DateTime.tryParse(data['fechaAutorizacion'])
-          : (data?['fechaObservacion'] != null
-              ? DateTime.tryParse(data['fechaObservacion'])
-              : null),
+      message: json['message']?.toString(),
+      encabezado: data['encabezado'] != null
+          ? PresupuestoEmergenciaEncabezado.fromJson(
+              Map<String, dynamic>.from(data['encabezado'] as Map),
+            )
+          : null,
+      detalle: (data['detalle'] as List<dynamic>? ?? [])
+          .map((e) => PresupuestoEmergenciaDetalleItem.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ))
+          .toList(),
     );
   }
 
   bool get esExitoso => success;
+
+  double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
+
+  String get totalFormateado => total.toStringAsFixed(2).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]},',
+      );
 }

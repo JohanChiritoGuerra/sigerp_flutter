@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/usuario.dart';
-import '../models/login_response.dart';
+import '../models/login_sigerp_response.dart';
 import '../models/perfil_trabajador.dart';
 import '../utils/constants.dart';
 import 'api_service.dart';
@@ -20,13 +20,10 @@ class AuthService extends ChangeNotifier {
   Usuario? get usuario => _usuario;
   TrabajadorModel? get perfilTrabajador => _perfilTrabajador;
   bool get isLoading => _isLoading;
-  bool get isAuthenticated => _usuario != null && _usuario!.token != null;
+  bool get isAuthenticated => _usuario != null; // sin dependencia de token
   String? get errorMessage => _errorMessage;
 
-  // Obtener cargo (del endpoint)
   String get cargo => _perfilTrabajador?.cargo ?? '';
-
-  // Área fija por ahora
   String get area => 'Empresa Andahuasi';
 
   // Login
@@ -34,10 +31,6 @@ class AuthService extends ChangeNotifier {
     required String usuario,
     required String password,
     required String empresaId,
-    String? deviceFingerprint,
-    String? deviceType,
-    String? userAgent,
-    String? ipAddress,
     bool rememberMe = false,
   }) async {
     _isLoading = true;
@@ -49,31 +42,28 @@ class AuthService extends ChangeNotifier {
         'usuario': usuario,
         'password': password,
         'empresaId': empresaId,
-        'deviceFingerprint': deviceFingerprint ?? 'flutter_app',
-        'deviceType': deviceType ?? 'Mobile',
-        'userAgent': userAgent ?? 'Sigerp Flutter App',
-        'ipAddress': ipAddress ?? '127.0.0.1',
-        'rememberMe': rememberMe,
       };
-      
-      // Debug: imprimir el body que se envía
-      print('🔐 LOGIN REQUEST: $requestBody');
-      
-      final response = await _apiService.post('api/LoginWeb/login', requestBody);
-      
-      // Debug: imprimir la respuesta
-      print('🔐 LOGIN RESPONSE: $response');
 
-      final loginResponse = LoginResponse.fromJson(response);
+      debugPrint('🔐 LOGIN REQUEST: $requestBody');
+
+      final response = await _apiService.post(
+        'api/LoginSigerp',
+        requestBody,
+        skipAuthRetry: true, // ← 401 aquí = credenciales incorrectas, no token expirado
+      );
+
+      debugPrint('🔐 RAW RESPONSE: $response');
+
+      final loginResponse = LoginSigerpResponse.fromJson(response);
 
       if (loginResponse.esExitoso) {
-        _usuario = loginResponse.toUsuario();
-        _apiService.setToken(_usuario!.token);
+        _usuario = Usuario.fromLoginSigerp(loginResponse);
 
-        // Obtener perfil del trabajador
+        if (_usuario!.token != null) {
+          _apiService.setToken(_usuario!.token);
+        }
+
         await obtenerPerfilTrabajador();
-
-        // Guardar datos en storage seguro
         await _saveUserData();
 
         _isLoading = false;
@@ -98,10 +88,13 @@ class AuthService extends ChangeNotifier {
     if (_usuario == null) return;
 
     try {
-      final response = await _apiService.post('api/PerfilTrabajador/ObtenerPerfilTrabajador', {
-        'trabId': _usuario!.trabId ?? '',
-        'empresaId': _usuario!.empresaId ?? '02',
-      });
+      final response = await _apiService.post(
+        'api/PerfilTrabajador/ObtenerPerfilTrabajador',
+        {
+          'trabId': _usuario!.trabId ?? '',
+          'empresaId': _usuario!.empresaId ?? '02',
+        },
+      );
 
       final perfilResponse = PerfilTrabajadorResponse.fromJson(response);
 
@@ -123,19 +116,20 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Verificar si hay sesión guardada
+  // Verificar sesión guardada
   Future<bool> checkSavedSession() async {
     try {
-      final token = await _storage.read(key: AppConstants.tokenKey);
       final userData = await _storage.read(key: AppConstants.userKey);
 
-      if (token != null && userData != null) {
+      if (userData != null) {
         _usuario = Usuario.fromJson(jsonDecode(userData));
-        _apiService.setToken(token);
 
-        // Obtener perfil actualizado
+        final token = await _storage.read(key: AppConstants.tokenKey);
+        if (token != null) {
+          _apiService.setToken(token);
+        }
+
         await obtenerPerfilTrabajador();
-
         notifyListeners();
         return true;
       }
@@ -148,10 +142,9 @@ class AuthService extends ChangeNotifier {
   // Guardar datos del usuario
   Future<void> _saveUserData() async {
     if (_usuario != null) {
-      await _storage.write(
-        key: AppConstants.tokenKey,
-        value: _usuario!.token,
-      );
+      if (_usuario!.token != null) {
+        await _storage.write(key: AppConstants.tokenKey, value: _usuario!.token);
+      }
       await _storage.write(
         key: AppConstants.userKey,
         value: jsonEncode(_usuario!.toJson()),
@@ -165,14 +158,12 @@ class AuthService extends ChangeNotifier {
     await _storage.delete(key: AppConstants.userKey);
   }
 
-  // ===== MODO MOCK PARA DESARROLLO =====
-  /// Login con datos de prueba sin necesidad de API
+  // ===== MODO MOCK =====
   Future<bool> loginMock() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    // Simular delay de red
     await Future.delayed(const Duration(milliseconds: 800));
 
     _usuario = Usuario(
