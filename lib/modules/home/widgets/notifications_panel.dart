@@ -30,7 +30,7 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
   final SolicitudCompraService _scService = SolicitudCompraService();
 
   List<PresupuestoEmergenciaListaItem> _presupuestosPendientes = [];
-  List<SolicitudCompra> _solicitudesPendientes = [];
+  List<SolicitudCompraListaItem> _solicitudesPendientes = [];
   bool _isLoading = true;
 
   @override
@@ -378,16 +378,17 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
     );
   }
 
-  Widget _buildSCNotificationItem(SolicitudCompra sc) {
+  Widget _buildSCNotificationItem(SolicitudCompraListaItem sc) {
+    final solicitud = SolicitudCompra.fromListaItem(sc);
     return _buildNotificationCard(
       accentColor: Color(AppColors.infoColor),
       icon: Icons.shopping_cart,
-      codigo: sc.codigo,
-      titulo: sc.sustento ?? 'Solicitud de Compra',
-      monto: 'S/ ${sc.montoTotal.toStringAsFixed(2)}',
-      solicitante: sc.solicitanteNombre,
-      fecha: _formatTimeAgo(sc.fechaSolicitud),
-      badge: sc.tipo.codigo,
+      codigo: solicitud.codigo,
+      titulo: solicitud.sustento ?? 'Solicitud de Compra',
+      monto: 'S/ ${solicitud.montoTotal.toStringAsFixed(2)}',
+      solicitante: solicitud.solicitanteNombre,
+      fecha: _formatTimeAgo(solicitud.fechaSolicitud),
+      badge: solicitud.tipo.codigo,
       badgeColor: Color(AppColors.infoColor),
       onTap: () {
         Navigator.pop(context);

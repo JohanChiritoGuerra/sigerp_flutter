@@ -5,7 +5,7 @@ import '../../../modules/solicitudes_compra/services/solicitud_compra_service.da
 /// Devuelve datos de prueba sin hacer llamadas a la API.
 class MockSolicitudCompraService extends SolicitudCompraService {
   @override
-  Future<SolicitudCompraListResponse> obtenerSolicitudesPendientes({
+  Future<SolicitudListResponse> obtenerSolicitudesPendientes({
     required String trabId,
     required String empresaId,
   }) async {
@@ -13,7 +13,7 @@ class MockSolicitudCompraService extends SolicitudCompraService {
 
     final datos = _generarPendientes();
 
-    return SolicitudCompraListResponse(
+    return SolicitudListResponse(
       success: true,
       message: 'Datos mock cargados correctamente',
       solicitudes: datos,
@@ -22,7 +22,7 @@ class MockSolicitudCompraService extends SolicitudCompraService {
   }
 
   @override
-  Future<SolicitudCompraListResponse> obtenerSolicitudesAutorizadas({
+  Future<SolicitudListResponse> obtenerSolicitudesAutorizadas({
     required String trabId,
     required String empresaId,
   }) async {
@@ -30,7 +30,7 @@ class MockSolicitudCompraService extends SolicitudCompraService {
 
     final datos = _generarAutorizadas();
 
-    return SolicitudCompraListResponse(
+    return SolicitudListResponse(
       success: true,
       message: 'Datos mock cargados correctamente',
       solicitudes: datos,
@@ -75,8 +75,8 @@ class MockSolicitudCompraService extends SolicitudCompraService {
 
   // =================== DATOS DE PRUEBA ===================
 
-  List<SolicitudCompra> _generarPendientes() {
-    return [
+  List<SolicitudCompraListaItem> _generarPendientes() {
+    final solicitudes = <SolicitudCompra>[
       SolicitudCompra(
         id: '1',
         codigo: 'SC-2026-00145',
@@ -157,10 +157,19 @@ class MockSolicitudCompraService extends SolicitudCompraService {
         estado: EstadoSolicitud.pendiente,
       ),
     ];
+    return solicitudes.map((sc) => SolicitudCompraListaItem(
+      solComCabId: sc.id,
+      tipOpeCompId: 1, // Placeholder
+      tipo: sc.tipo.codigo,
+      numero: sc.codigo,
+      fecha: sc.fechaSolicitud,
+      usuario: sc.solicitanteNombre,
+      area: sc.areaSolicitante,
+    )).toList();
   }
 
-  List<SolicitudCompra> _generarAutorizadas() {
-    return [
+  List<SolicitudCompraListaItem> _generarAutorizadas() {
+    final solicitudes = <SolicitudCompra>[
       SolicitudCompra(
         id: '10',
         codigo: 'SC-2026-00120',
@@ -197,5 +206,14 @@ class MockSolicitudCompraService extends SolicitudCompraService {
         estado: EstadoSolicitud.autorizado,
       ),
     ];
+    return solicitudes.map((sc) => SolicitudCompraListaItem(
+      solComCabId: sc.id,
+      tipOpeCompId: 1, // Placeholder
+      tipo: sc.tipo.codigo,
+      numero: sc.codigo,
+      fecha: sc.fechaSolicitud,
+      usuario: sc.solicitanteNombre,
+      area: sc.areaSolicitante,
+    )).toList();
   }
 }

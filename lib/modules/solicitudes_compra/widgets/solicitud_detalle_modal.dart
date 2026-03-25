@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/services/auth_service.dart';
 import '../models/solicitud_compra.dart';
+import '../services/solicitud_compra_service.dart';
 
 /// Paleta pastel por tipo de solicitud
 class _SCModalPastel {
@@ -16,8 +19,8 @@ class _SCModalPastel {
   });
 }
 
-class SolicitudDetalleModal extends StatelessWidget {
-  final SolicitudCompra solicitud;
+class SolicitudDetalleModal extends StatefulWidget {
+  final SolicitudCompraListaItem solicitud;
   final bool mostrarAcciones;
   final VoidCallback? onAutorizar;
   final VoidCallback? onObservar;
@@ -29,6 +32,16 @@ class SolicitudDetalleModal extends StatelessWidget {
     this.onAutorizar,
     this.onObservar,
   });
+
+  @override
+  State<SolicitudDetalleModal> createState() => _SolicitudDetalleModalState();
+}
+
+class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
+  final SolicitudCompraService _service = SolicitudCompraService();
+  bool _isLoading = true;
+  String? _error;
+  SolicitudCompraDetalleResponse? _detalle;
 
   static const Map<TipoSolicitudCompra, _SCModalPastel> _paleta = {
     TipoSolicitudCompra.compraMateriales: _SCModalPastel(
@@ -58,7 +71,52 @@ class SolicitudDetalleModal extends StatelessWidget {
   };
 
   @override
+  void initState() {
+    super.initState();
+    _cargarDetalle();
+  }
+
+  Future<void> _cargarDetalle() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authService = context.read<AuthService>();
+      final usuario = authService.usuario;
+
+      final result = await _service.obtenerDetalle(
+        solComCabId: widget.solicitud.solComCabId,
+        tipOpeCompId: widget.solicitud.tipOpeCompId,
+        usuario: usuario?.webUser ?? '',
+        empresaId: usuario?.empresaId ?? '02',
+      );
+
+      if (mounted) {
+        setState(() {
+          if (result.esExitoso) {
+            _detalle = result;
+          } else {
+            _error = result.baseResponse.message ?? 'Error al cargar detalle';
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Error: $e';
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final p = _paleta[widget.solicitud.tipoEnum]!;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
@@ -70,7 +128,6 @@ class SolicitudDetalleModal extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Handle para drag
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Container(
@@ -82,72 +139,91 @@ class SolicitudDetalleModal extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Contenido scrolleable
             Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header con tipo de solicitud
-                    _buildHeader(),
-                    const SizedBox(height: 24),
-
-                    // Información General
-                    _buildSeccion(
-                      icono: Icons.description_outlined,
-                      titulo: 'INFORMACIÓN GENERAL',
-                      child: _buildInformacionGeneral(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Sustento (movido antes de monto)
-                    if (solicitud.sustento != null &&
-                        solicitud.sustento!.isNotEmpty) ...[
-                      _buildSeccion(
-                        icono: Icons.article_outlined,
-                        titulo: 'SUSTENTO',
-                        child: _buildSustento(),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Monto Estimado
-                    _buildSeccion(
-                      icono: Icons.payments_outlined,
-                      titulo: 'MONTO ESTIMADO',
-                      child: _buildMontoEstimado(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Items
-                    if (solicitud.items.isNotEmpty) ...[
-                      _buildSeccion(
-                        icono: Icons.inventory_2_outlined,
-                        titulo: 'ITEMS (${solicitud.items.length})',
-                        child: _buildListaItems(),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    const SizedBox(height: 80), // Espacio para los botones
-                  ],
-                ),
-              ),
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator(color: p.acento))
+                  : _error != null
+                      ? _buildError(p)
+                      : SingleChildScrollView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildHeader(p),
+                              const SizedBox(height: 24),
+                              _buildSeccion(
+                                icono: Icons.description_outlined,
+                                titulo: 'INFORMACIÓN GENERAL',
+                                pastel: p,
+                                child: _buildInformacionGeneral(),
+                              ),
+                              const SizedBox(height: 20),
+                              if (_detalle?.encabezado?.usoMotivo != null &&
+                                  _detalle!.encabezado!.usoMotivo.isNotEmpty) ...[
+                                _buildSeccion(
+                                  icono: Icons.article_outlined,
+                                  titulo: 'SUSTENTO',
+                                  pastel: p,
+                                  child: _buildSustento(),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                              _buildSeccion(
+                                icono: Icons.payments_outlined,
+                                titulo: 'MONTO ESTIMADO',
+                                pastel: p,
+                                child: _buildMontoEstimado(p),
+                              ),
+                              const SizedBox(height: 20),
+                              if (_detalle?.detalle.isNotEmpty ?? false) ...[
+                                _buildSeccion(
+                                  icono: Icons.inventory_2_outlined,
+                                  titulo: 'ITEMS (${_detalle?.detalle.length ?? 0})',
+                                  pastel: p,
+                                  child: _buildListaItems(p),
+                                ),
+                              ],
+                              const SizedBox(height: 80),
+                            ],
+                          ),
+                        ),
             ),
-
-            // Botones de acción
-            if (mostrarAcciones) _buildBotonesAccion(context),
+            if (widget.mostrarAcciones) _buildBotonesAccion(context, p),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final p = _paleta[solicitud.tipo]!;
+  Widget _buildError(_SCModalPastel pastel) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _cargarDetalle,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Reintentar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: pastel.acento,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(_SCModalPastel p) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
@@ -163,7 +239,7 @@ class SolicitudDetalleModal extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              solicitud.tipo.icon,
+              widget.solicitud.tipoEnum.icon,
               color: p.acento,
               size: 24,
             ),
@@ -171,7 +247,7 @@ class SolicitudDetalleModal extends StatelessWidget {
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              solicitud.tipo.nombre,
+              widget.solicitud.tipoEnum.nombre,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -188,22 +264,22 @@ class SolicitudDetalleModal extends StatelessWidget {
   Widget _buildSeccion({
     required IconData icono,
     required String titulo,
+    required _SCModalPastel pastel,
     required Widget child,
   }) {
-    final p = _paleta[solicitud.tipo]!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icono, size: 18, color: p.textoFuerte),
+            Icon(icono, size: 18, color: pastel.textoFuerte),
             const SizedBox(width: 8),
             Text(
               titulo,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: p.textoFuerte,
+                color: pastel.textoFuerte,
                 letterSpacing: 0.5,
               ),
             ),
@@ -216,6 +292,8 @@ class SolicitudDetalleModal extends StatelessWidget {
   }
 
   Widget _buildInformacionGeneral() {
+    final enc = _detalle?.encabezado;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -224,10 +302,16 @@ class SolicitudDetalleModal extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildInfoRow('Solicitud', '#${solicitud.codigo}'),
-          _buildInfoRow('Fecha', solicitud.fechaFormateada),
-          _buildInfoRow('Área', solicitud.areaSolicitante),
-          _buildInfoRow('Solicitante', solicitud.solicitanteNombre),
+          _buildInfoRow('Solicitud', '#${widget.solicitud.numero}'),
+          _buildInfoRow('Fecha', widget.solicitud.fechaFormateada),
+          _buildInfoRow('Área', widget.solicitud.area),
+          _buildInfoRow('Solicitante', widget.solicitud.usuario),
+          if ((enc?.cc ?? '').isNotEmpty) _buildInfoRow('C. Costo', enc!.cc),
+          if ((enc?.descripcionGds ?? '').isNotEmpty || (enc?.gds ?? '').isNotEmpty)
+            _buildInfoRow('GDS',
+                (enc?.descripcionGds ?? '').isNotEmpty
+                    ? enc!.descripcionGds
+                    : enc!.gds),
         ],
       ),
     );
@@ -251,7 +335,7 @@ class SolicitudDetalleModal extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              value,
+              value.isEmpty ? '—' : value,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -263,8 +347,8 @@ class SolicitudDetalleModal extends StatelessWidget {
     );
   }
 
-  Widget _buildMontoEstimado() {
-    final p = _paleta[solicitud.tipo]!;
+  Widget _buildMontoEstimado(_SCModalPastel p) {
+    final total = _detalle?.totalFormateado ?? 'S/ 0.00';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -275,7 +359,7 @@ class SolicitudDetalleModal extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'S/ ${solicitud.montoCompletoFormateado}',
+            total,
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w800,
@@ -287,8 +371,8 @@ class SolicitudDetalleModal extends StatelessWidget {
     );
   }
 
-  Widget _buildListaItems() {
-    final p = _paleta[solicitud.tipo]!;
+  Widget _buildListaItems(_SCModalPastel p) {
+    final items = _detalle?.detalle ?? [];
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -296,10 +380,10 @@ class SolicitudDetalleModal extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        children: solicitud.items.asMap().entries.map((entry) {
+        children: items.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-          final isLast = index == solicitud.items.length - 1;
+          final isLast = index == items.length - 1;
           
           return Column(
             children: [
@@ -319,31 +403,29 @@ class SolicitudDetalleModal extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (item.codigo.isNotEmpty) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: p.fondoClaro,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              item.codigo,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: p.acento,
-                                fontFamily: 'monospace',
-                              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: p.fondoClaro,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.item,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: p.acento,
+                              fontFamily: 'monospace',
                             ),
                           ),
-                          const SizedBox(width: 8),
-                        ],
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            item.descripcion,
+                            item.itemDes,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -366,7 +448,7 @@ class SolicitudDetalleModal extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${item.cantidad} ${item.unidadMedida}',
+                            '${_formatCantidad(item.cantidad)} ${item.und}',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
@@ -376,7 +458,7 @@ class SolicitudDetalleModal extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'x S/ ${item.precioUnitarioFormateado}',
+                          'x ${item.montoReferencialFormateado}',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[600],
@@ -384,7 +466,7 @@ class SolicitudDetalleModal extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          'S/ ${item.subtotalFormateado}',
+                          item.subtotalFormateado,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -393,6 +475,20 @@ class SolicitudDetalleModal extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (item.cc.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.account_tree_outlined,
+                              size: 12, color: Colors.grey[400]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'CC: ${item.cc}',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -404,7 +500,17 @@ class SolicitudDetalleModal extends StatelessWidget {
     );
   }
 
+  String _formatCantidad(double cantidad) {
+    if (cantidad == cantidad.truncateToDouble()) {
+      return cantidad.toInt().toString();
+    }
+    return cantidad.toStringAsFixed(2);
+  }
+
   Widget _buildSustento() {
+    final texto = _detalle?.encabezado?.usoMotivo ?? 
+                  _detalle?.encabezado?.observacion ?? 
+                  'Sin descripción';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -413,7 +519,7 @@ class SolicitudDetalleModal extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        solicitud.sustento ?? '',
+        texto,
         style: TextStyle(
           fontSize: 13,
           color: Colors.grey[700],
@@ -423,8 +529,7 @@ class SolicitudDetalleModal extends StatelessWidget {
     );
   }
 
-  Widget _buildBotonesAccion(BuildContext context) {
-    final p = _paleta[solicitud.tipo]!;
+  Widget _buildBotonesAccion(BuildContext context, _SCModalPastel p) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -439,12 +544,11 @@ class SolicitudDetalleModal extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Botón Observar
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                onObservar?.call();
+                widget.onObservar?.call();
               },
               icon: const Icon(Icons.front_hand_rounded, size: 20),
               label: const Text(
@@ -466,10 +570,9 @@ class SolicitudDetalleModal extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          // Botón Autorizar
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: onAutorizar,
+              onPressed: widget.onAutorizar,
               icon: const Icon(Icons.verified_rounded, size: 20),
               label: const Text(
                 'AUTORIZAR',

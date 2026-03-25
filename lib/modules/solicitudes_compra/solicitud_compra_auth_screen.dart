@@ -19,8 +19,8 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
   late TabController _tabController;
   final SolicitudCompraService _service = SolicitudCompraService();
 
-  List<SolicitudCompra> _solicitudesPendientes = [];
-  List<SolicitudCompra> _solicitudesAutorizadas = [];
+  List<SolicitudCompraListaItem> _solicitudesPendientes = [];
+  List<SolicitudCompraListaItem> _solicitudesAutorizadas = [];
   bool _isLoading = true;
   String? _error;
 
@@ -55,161 +55,33 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     }
 
     try {
-      // TODO: Descomentar cuando el API esté listo
-      // Cargar ambas listas en paralelo
-      // final results = await Future.wait([
-      //   _service.obtenerSolicitudesPendientes(
-      //     trabId: usuario.trabId ?? '',
-      //     empresaId: usuario.empresaId ?? '02',
-      //   ),
-      //   _service.obtenerSolicitudesAutorizadas(
-      //     trabId: usuario.trabId ?? '',
-      //     empresaId: usuario.empresaId ?? '02',
-      //   ),
-      // ]);
+      final result = await _service.obtenerListasAutorizacion(
+        usuario: usuario.webUser ?? '',
+        empresaId: usuario.empresaId ?? '02',
+      );
 
-      // Datos de prueba
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      setState(() {
-        _solicitudesPendientes = _generarDatosPrueba();
-        _solicitudesAutorizadas = _generarDatosAutorizados();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (result.esExitoso) {
+            _solicitudesPendientes = result.porAutorizar;
+            _solicitudesAutorizadas = result.autorizados;
+          } else {
+            _error = result.baseResponse.message ?? 'Error al cargar los datos';
+          }
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Error al cargar solicitudes: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Error al cargar: $e';
+        });
+      }
     }
   }
 
-  // Datos de prueba para desarrollo
-  List<SolicitudCompra> _generarDatosPrueba() {
-    return [
-      SolicitudCompra(
-        id: '1',
-        codigo: 'SC-2026-00145',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'SISTEMAS',
-        solicitanteNombre: 'Juan Pérez García',
-        solicitanteId: '001',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 1)),
-        montoTotal: 12500.00,
-        sustento: 'Requerimiento urgente para renovación de equipos del área de desarrollo. Se necesitan laptops y monitores para el nuevo personal.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '01020304', descripcion: 'Laptop HP Core i7 16GB RAM', unidadMedida: 'UND', cantidad: 5, precioUnitario: 1800.00, subtotal: 9000.00),
-          ItemSolicitud(id: '2', codigo: '01020512', descripcion: 'Monitor 27" LG UltraWide', unidadMedida: 'UND', cantidad: 5, precioUnitario: 700.00, subtotal: 3500.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '2',
-        codigo: 'SC-2026-00142',
-        tipo: TipoSolicitudCompra.compraActivoFijo,
-        areaSolicitante: 'ENERGÍA',
-        solicitanteNombre: 'Carlos López Mendoza',
-        solicitanteId: '002',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 2)),
-        montoTotal: 45800.00,
-        sustento: 'Adquisición de generador eléctrico de respaldo para planta principal.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '05010001', descripcion: 'Generador Eléctrico 50KW Caterpillar', unidadMedida: 'UND', cantidad: 1, precioUnitario: 45800.00, subtotal: 45800.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '3',
-        codigo: 'SC-2026-00140',
-        tipo: TipoSolicitudCompra.servicioTercero,
-        areaSolicitante: 'RECURSOS HUMANOS',
-        solicitanteNombre: 'María Torres Vega',
-        solicitanteId: '003',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 3)),
-        montoTotal: 8200.00,
-        sustento: 'Contratación de servicio de capacitación en seguridad ocupacional para todo el personal.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '09010101', descripcion: 'Capacitación SST - 40 horas', unidadMedida: 'SRV', cantidad: 1, precioUnitario: 8200.00, subtotal: 8200.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '4',
-        codigo: 'SC-2026-00138',
-        tipo: TipoSolicitudCompra.cargaDiversaGestion,
-        areaSolicitante: 'ADMINISTRACIÓN',
-        solicitanteNombre: 'Ana María Sánchez',
-        solicitanteId: '004',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 4)),
-        montoTotal: 3500.00,
-        sustento: 'Gastos de representación para evento corporativo con proveedores.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '08050201', descripcion: 'Catering evento corporativo', unidadMedida: 'SRV', cantidad: 1, precioUnitario: 2500.00, subtotal: 2500.00),
-          ItemSolicitud(id: '2', codigo: '08050305', descripcion: 'Material promocional impreso', unidadMedida: 'KIT', cantidad: 1, precioUnitario: 1000.00, subtotal: 1000.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '5',
-        codigo: 'SC-2026-00135',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'LOGÍSTICA',
-        solicitanteNombre: 'Pedro Ramírez Luna',
-        solicitanteId: '005',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 5)),
-        montoTotal: 15300.00,
-        sustento: 'Compra de repuestos para mantenimiento preventivo de flota vehicular.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '03020101', descripcion: 'Kit de frenos delanteros', unidadMedida: 'JGO', cantidad: 10, precioUnitario: 850.00, subtotal: 8500.00),
-          ItemSolicitud(id: '2', codigo: '03020205', descripcion: 'Filtros de aceite motor', unidadMedida: 'UND', cantidad: 20, precioUnitario: 120.00, subtotal: 2400.00),
-          ItemSolicitud(id: '3', codigo: '03020301', descripcion: 'Aceite motor sintético 5W30', unidadMedida: 'GLN', cantidad: 40, precioUnitario: 110.00, subtotal: 4400.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-    ];
-  }
-
-  List<SolicitudCompra> _generarDatosAutorizados() {
-    return [
-      SolicitudCompra(
-        id: '10',
-        codigo: 'SC-2026-00120',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'COSECHA',
-        solicitanteNombre: 'Roberto Díaz Paredes',
-        solicitanteId: '010',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 10)),
-        montoTotal: 22000.00,
-        sustento: 'Compra de herramientas para temporada de cosecha.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '02010101', descripcion: 'Machetes de acero templado', unidadMedida: 'UND', cantidad: 50, precioUnitario: 120.00, subtotal: 6000.00),
-          ItemSolicitud(id: '2', codigo: '02010205', descripcion: 'Guantes de cuero reforzado', unidadMedida: 'PAR', cantidad: 100, precioUnitario: 45.00, subtotal: 4500.00),
-          ItemSolicitud(id: '3', codigo: '02010310', descripcion: 'Botas de jebe caña alta', unidadMedida: 'PAR', cantidad: 50, precioUnitario: 85.00, subtotal: 4250.00),
-          ItemSolicitud(id: '4', codigo: '02010415', descripcion: 'Cascos de seguridad', unidadMedida: 'UND', cantidad: 50, precioUnitario: 65.00, subtotal: 3250.00),
-          ItemSolicitud(id: '5', codigo: '02010520', descripcion: 'Lentes de protección', unidadMedida: 'UND', cantidad: 100, precioUnitario: 40.00, subtotal: 4000.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-      SolicitudCompra(
-        id: '11',
-        codigo: 'SC-2026-00115',
-        tipo: TipoSolicitudCompra.servicioTercero,
-        areaSolicitante: 'MANTENIMIENTO',
-        solicitanteNombre: 'Luis Fernández Castro',
-        solicitanteId: '011',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 12)),
-        montoTotal: 18500.00,
-        sustento: 'Servicio de mantenimiento correctivo de maquinaria.',
-        items: [
-          ItemSolicitud(id: '1', codigo: '09020101', descripcion: 'Mant. correctivo tractor John Deere', unidadMedida: 'SRV', cantidad: 1, precioUnitario: 8500.00, subtotal: 8500.00),
-          ItemSolicitud(id: '2', codigo: '09020102', descripcion: 'Mant. correctivo cosechadora', unidadMedida: 'SRV', cantidad: 1, precioUnitario: 10000.00, subtotal: 10000.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-    ];
-  }
-
-  void _showDetalleModal(SolicitudCompra solicitud, bool esPendiente) {
+  void _showDetalleModal(SolicitudCompraListaItem solicitud, bool esPendiente) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -223,8 +95,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     );
   }
 
-  Future<void> _autorizarSolicitud(SolicitudCompra solicitud) async {
-    // Mostrar loading
+  Future<void> _autorizarSolicitud(SolicitudCompraListaItem solicitud) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -237,19 +108,15 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     final usuario = authService.usuario;
 
     final response = await _service.autorizarSolicitud(
-      solicitudId: solicitud.id,
+      solicitudId: solicitud.solComCabId,
       trabId: usuario?.trabId ?? '',
       empresaId: usuario?.empresaId ?? '02',
     );
 
-    // Cerrar loading
     if (mounted) Navigator.pop(context);
 
     if (response.esExitoso) {
-      // Cerrar modal de detalle
       if (mounted) Navigator.pop(context);
-
-      // Mostrar mensaje de éxito
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -259,8 +126,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
           ),
         );
       }
-
-      // Refrescar lista
       _cargarSolicitudes();
     } else {
       if (mounted) {
@@ -275,7 +140,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     }
   }
 
-  void _mostrarModalObservacion(SolicitudCompra solicitud) {
+  void _mostrarModalObservacion(SolicitudCompraListaItem solicitud) {
     final TextEditingController motivoController = TextEditingController();
 
     showDialog(
@@ -301,7 +166,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header con barra lateral roja
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -344,7 +208,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '#${solicitud.codigo}',
+                            '#${solicitud.numero}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[500],
@@ -357,8 +221,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                   ],
                 ),
               ),
-
-              // Body
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
                 child: Column(
@@ -374,8 +236,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Campo de texto
                     TextField(
                       controller: motivoController,
                       maxLines: 4,
@@ -409,11 +269,8 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Botones en fila (diferente al PE que los tiene apilados)
                     Row(
                       children: [
-                        // Cancelar
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(dialogContext),
@@ -435,7 +292,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Observar
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () async {
@@ -483,8 +339,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     );
   }
 
-  Future<void> _observarSolicitud(SolicitudCompra solicitud, String motivo) async {
-    // Mostrar loading
+  Future<void> _observarSolicitud(SolicitudCompraListaItem solicitud, String motivo) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -497,20 +352,16 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     final usuario = authService.usuario;
 
     final response = await _service.observarSolicitud(
-      solicitudId: solicitud.id,
+      solicitudId: solicitud.solComCabId,
       trabId: usuario?.trabId ?? '',
       empresaId: usuario?.empresaId ?? '02',
       motivo: motivo,
     );
 
-    // Cerrar loading
     if (mounted) Navigator.pop(context);
 
     if (response.esExitoso) {
-      // Cerrar modal de detalle (el dialog de observación ya se cerró antes de llamar esta función)
       if (mounted) Navigator.pop(context);
-
-      // Mostrar mensaje
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -520,8 +371,6 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
           ),
         );
       }
-
-      // Refrescar lista
       _cargarSolicitudes();
     } else {
       if (mounted) {
@@ -594,7 +443,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
                 ],
               ),
             ),
-            const Tab(text: 'AUTORIZADO'),
+            const Tab(text: 'AUTORIZADOS'),
           ],
         ),
       ),
@@ -627,17 +476,15 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    // Tab: Por Autorizar
                     _buildListaSolicitudes(
                       _solicitudesPendientes,
                       esPendiente: true,
-                      emptyMessage: 'No tienes solicitudes pendientes',
+                      emptyMessage: 'No hay solicitudes por autorizar',
                     ),
-                    // Tab: Autorizados
                     _buildListaSolicitudes(
                       _solicitudesAutorizadas,
                       esPendiente: false,
-                      emptyMessage: 'No has autorizado solicitudes',
+                      emptyMessage: 'No hay solicitudes autorizadas',
                     ),
                   ],
                 ),
@@ -645,7 +492,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
   }
 
   Widget _buildListaSolicitudes(
-    List<SolicitudCompra> solicitudes, {
+    List<SolicitudCompraListaItem> solicitudes, {
     required bool esPendiente,
     required String emptyMessage,
   }) {
@@ -655,7 +502,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              esPendiente ? Icons.check_circle_outline : Icons.history,
+              esPendiente ? Icons.pending_actions : Icons.check_circle_outline,
               size: 64,
               color: Colors.grey[300],
             ),
@@ -676,9 +523,8 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       onRefresh: _cargarSolicitudes,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        itemCount: solicitudes.length + 1, // +1 para el mensaje de refresh
+        itemCount: solicitudes.length + 1,
         itemBuilder: (context, index) {
-          // Último item: mensaje de actualización
           if (index == solicitudes.length) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),

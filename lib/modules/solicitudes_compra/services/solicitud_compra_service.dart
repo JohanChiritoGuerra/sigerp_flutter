@@ -4,52 +4,79 @@ import '../../../core/services/api_service.dart';
 class SolicitudCompraService {
   final ApiService _apiService = ApiService();
 
-  /// Obtiene lista de solicitudes pendientes de autorización
-  Future<SolicitudCompraListResponse> obtenerSolicitudesPendientes({
-    required String trabId,
+  /// Tab 1 → PorAutorizar / Tab 2 → Autorizados
+  Future<SolicitudCompraAutorizacionResponse> obtenerListasAutorizacion({
+    required String usuario,
     required String empresaId,
   }) async {
     try {
-      final response = await _apiService.post(
-        'api/SolicitudCompra/ObtenerListaAutorizar',
-        {
-          'trabId': trabId,
+      final response = await _apiService.get(
+        'api/solicitud-compra/grillas/autorizacion',
+        queryParams: {
+          'usuario': usuario,
           'empresaId': empresaId,
-          'estado': 'PENDIENTE',
         },
       );
 
-      return SolicitudCompraListResponse.fromJson(response);
+      // Normaliza por si la API devuelve data/envuelto
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'porAutorizar': data['porAutorizar'] ?? response['porAutorizar'] ?? [],
+        'autorizados': data['autorizados'] ?? response['autorizados'] ?? [],
+      };
+
+      return SolicitudCompraAutorizacionResponse.fromJson(normalized);
     } catch (e) {
-      return SolicitudCompraListResponse(
-        success: false,
-        message: 'Error al obtener solicitudes: $e',
-        solicitudes: [],
+      return SolicitudCompraAutorizacionResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        porAutorizar: const [],
+        autorizados: const [],
       );
     }
   }
 
-  /// Obtiene lista de solicitudes autorizadas por el usuario
-  Future<SolicitudCompraListResponse> obtenerSolicitudesAutorizadas({
-    required String trabId,
+  /// Detalle para el modal
+  Future<SolicitudCompraDetalleResponse> obtenerDetalle({
+    required String solComCabId,
+    required int tipOpeCompId,
+    required String usuario,
     required String empresaId,
   }) async {
     try {
-      final response = await _apiService.post(
-        'api/SolicitudCompra/ObtenerListaAutorizar',
-        {
-          'trabId': trabId,
+      final response = await _apiService.get(
+        'api/solicitud-compra/$solComCabId/detalle',
+        queryParams: {
+          'tipOpeCompId': tipOpeCompId.toString(),
+          'usuario': usuario,
           'empresaId': empresaId,
-          'estado': 'AUTORIZADO',
         },
       );
 
-      return SolicitudCompraListResponse.fromJson(response);
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'encabezado': data['encabezado'] ?? data['Encabezado'] ?? response['encabezado'] ?? response['Encabezado'],
+        'detalle': data['detalle'] ?? data['Detalle'] ?? response['detalle'] ?? response['Detalle'] ?? [],
+      };
+
+      return SolicitudCompraDetalleResponse.fromJson(normalized);
     } catch (e) {
-      return SolicitudCompraListResponse(
-        success: false,
-        message: 'Error al obtener solicitudes: $e',
-        solicitudes: [],
+      return SolicitudCompraDetalleResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        detalle: const [],
       );
     }
   }
@@ -75,6 +102,58 @@ class SolicitudCompraService {
       return SolicitudCompraActionResponse(
         success: false,
         message: 'Error al autorizar: $e',
+      );
+    }
+  }
+
+  /// Obtiene lista de solicitudes pendientes de autorización
+  Future<SolicitudListResponse> obtenerSolicitudesPendientes({
+    required String trabId,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        'api/SolicitudCompra/ObtenerListaAutorizar',
+        {
+          'trabId': trabId,
+          'empresaId': empresaId,
+          'estado': 'PENDIENTE',
+        },
+      );
+
+      return SolicitudListResponse.fromJson(response);
+    } catch (e) {
+      return SolicitudListResponse(
+        success: false,
+        message: 'Error al obtener solicitudes: $e',
+        solicitudes: const [],
+        totalRegistros: 0,
+      );
+    }
+  }
+
+  /// Obtiene lista de solicitudes autorizadas por el usuario
+  Future<SolicitudListResponse> obtenerSolicitudesAutorizadas({
+    required String trabId,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        'api/SolicitudCompra/ObtenerListaAutorizar',
+        {
+          'trabId': trabId,
+          'empresaId': empresaId,
+          'estado': 'AUTORIZADO',
+        },
+      );
+
+      return SolicitudListResponse.fromJson(response);
+    } catch (e) {
+      return SolicitudListResponse(
+        success: false,
+        message: 'Error al obtener solicitudes: $e',
+        solicitudes: const [],
+        totalRegistros: 0,
       );
     }
   }
@@ -105,73 +184,4 @@ class SolicitudCompraService {
       );
     }
   }
-}
-
-/// Respuesta de lista de solicitudes
-class SolicitudCompraListResponse {
-  final bool success;
-  final String? message;
-  final List<SolicitudCompra> solicitudes;
-  final int totalRegistros;
-
-  SolicitudCompraListResponse({
-    required this.success,
-    this.message,
-    required this.solicitudes,
-    this.totalRegistros = 0,
-  });
-
-  factory SolicitudCompraListResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
-    List<SolicitudCompra> solicitudes = [];
-
-    if (data != null && data['solicitudes'] != null) {
-      solicitudes = (data['solicitudes'] as List)
-          .map((s) => SolicitudCompra.fromJson(s))
-          .toList();
-    }
-
-    return SolicitudCompraListResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      solicitudes: solicitudes,
-      totalRegistros: data?['totalRegistros'] ?? solicitudes.length,
-    );
-  }
-
-  bool get esExitoso => success;
-}
-
-/// Respuesta de acciones (autorizar/observar)
-class SolicitudCompraActionResponse {
-  final bool success;
-  final String? message;
-  final String? solicitudId;
-  final String? estado;
-  final DateTime? fechaAccion;
-
-  SolicitudCompraActionResponse({
-    required this.success,
-    this.message,
-    this.solicitudId,
-    this.estado,
-    this.fechaAccion,
-  });
-
-  factory SolicitudCompraActionResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
-    return SolicitudCompraActionResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      solicitudId: data?['solicitudId'],
-      estado: data?['estado'],
-      fechaAccion: data?['fechaAutorizacion'] != null
-          ? DateTime.tryParse(data['fechaAutorizacion'])
-          : (data?['fechaObservacion'] != null
-              ? DateTime.tryParse(data['fechaObservacion'])
-              : null),
-    );
-  }
-
-  bool get esExitoso => success;
 }

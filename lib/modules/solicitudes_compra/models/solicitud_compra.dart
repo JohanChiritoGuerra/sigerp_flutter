@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-/// Tipos de solicitud de compra
+// ─── BaseResponse ─────────────────────────────────────────────────────────────
+class BaseResponse {
+  final bool success;
+  final bool exception;
+  final String? tipoException;
+  final String? message;
+  final List<String> errores;
+
+  BaseResponse({
+    required this.success,
+    this.exception = false,
+    this.tipoException,
+    this.message,
+    this.errores = const [],
+  });
+
+  factory BaseResponse.fromJson(Map<String, dynamic> json) => BaseResponse(
+    success:       json['Success']       ?? json['success']       ?? false,
+    exception:     json['Exception']     ?? json['exception']     ?? false,
+    tipoException: json['TipoException'] ?? json['tipoException'],
+    message:       json['Message']       ?? json['message'],
+    errores: ((json['Errores'] ?? json['errores']) as List<dynamic>?)
+            ?.map((e) => e.toString()).toList() ?? [],
+  );
+}
+
+// ─── Tipos de solicitud de compra ────────────────────────────────────────────
 enum TipoSolicitudCompra {
   compraMateriales,
   compraActivoFijo,
@@ -38,27 +65,13 @@ extension TipoSolicitudCompraExtension on TipoSolicitudCompra {
   Color get color {
     switch (this) {
       case TipoSolicitudCompra.compraMateriales:
-        return const Color(0xFF1565C0); // Azul principal
+        return const Color(0xFFAB7AE0); // Morado
       case TipoSolicitudCompra.compraActivoFijo:
-        return const Color(0xFFE65100); // Naranja oscuro
+        return const Color(0xFFE8915A); // Naranja
       case TipoSolicitudCompra.servicioTercero:
-        return const Color(0xFF2E7D32); // Verde
+        return const Color(0xFFE57373); // Rojo
       case TipoSolicitudCompra.cargaDiversaGestion:
-        return const Color(0xFF5E35B1); // Púrpura profundo
-    }
-  }
-
-  /// Color oscuro para títulos en el modal
-  Color get colorOscuro {
-    switch (this) {
-      case TipoSolicitudCompra.compraMateriales:
-        return const Color(0xFF0D47A1); // Azul muy oscuro
-      case TipoSolicitudCompra.compraActivoFijo:
-        return const Color(0xFFBF360C); // Naranja muy oscuro
-      case TipoSolicitudCompra.servicioTercero:
-        return const Color(0xFF1B5E20); // Verde muy oscuro
-      case TipoSolicitudCompra.cargaDiversaGestion:
-        return const Color(0xFF311B92); // Púrpura muy oscuro
+        return const Color(0xFF4CAF6A); // Verde
     }
   }
 
@@ -79,23 +92,34 @@ extension TipoSolicitudCompraExtension on TipoSolicitudCompra {
     }
   }
 
-  static TipoSolicitudCompra fromCodigo(String? codigo) {
-    switch (codigo?.toUpperCase()) {
-      case 'CM':
-        return TipoSolicitudCompra.compraMateriales;
-      case 'AF':
-        return TipoSolicitudCompra.compraActivoFijo;
-      case 'ST':
-        return TipoSolicitudCompra.servicioTercero;
-      case 'CD':
-        return TipoSolicitudCompra.cargaDiversaGestion;
-      default:
-        return TipoSolicitudCompra.compraMateriales;
-    }
+  static TipoSolicitudCompra fromString(String? value) {
+    if (value == null) return TipoSolicitudCompra.compraMateriales;
+    
+    final upper = value.toUpperCase().trim();
+    
+    // Códigos cortos
+    if (upper == 'CM') return TipoSolicitudCompra.compraMateriales;
+    if (upper == 'AF') return TipoSolicitudCompra.compraActivoFijo;
+    if (upper == 'ST') return TipoSolicitudCompra.servicioTercero;
+    if (upper == 'CD') return TipoSolicitudCompra.cargaDiversaGestion;
+    
+    // Nombres completos
+    if (upper == 'COMPRA DE MATERIALES') return TipoSolicitudCompra.compraMateriales;
+    if (upper == 'COMPRA DE ACTIVO FIJO') return TipoSolicitudCompra.compraActivoFijo;
+    if (upper == 'SERVICIO DE TERCERO' || upper == 'SERVICIOS DE TERCEROS') return TipoSolicitudCompra.servicioTercero;
+    if (upper.contains('CARGA DIVERSA')) return TipoSolicitudCompra.cargaDiversaGestion;
+    
+    // Variaciones posibles del API
+    if (upper.contains('MATERIAL')) return TipoSolicitudCompra.compraMateriales;
+    if (upper.contains('ACTIVO') || upper.contains('FIJO')) return TipoSolicitudCompra.compraActivoFijo;
+    if (upper.contains('SERVICIO')) return TipoSolicitudCompra.servicioTercero;
+    if (upper.contains('CARGA') || upper.contains('DIVERSA')) return TipoSolicitudCompra.cargaDiversaGestion;
+    
+    return TipoSolicitudCompra.compraMateriales;
   }
 }
 
-/// Estados de solicitud
+// ─── Estados de solicitud ────────────────────────────────────────────────────
 enum EstadoSolicitud {
   pendiente,
   autorizado,
@@ -112,7 +136,7 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
         return EstadoSolicitud.autorizado;
       case 'OBSERVADO':
         return EstadoSolicitud.observado;
-      case 'EN_PROCESO':
+      case 'EN PROCESO':
         return EstadoSolicitud.enProceso;
       default:
         return EstadoSolicitud.pendiente;
@@ -131,14 +155,195 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
         return 'EN PROCESO';
     }
   }
+
+  Color get color {
+    switch (this) {
+      case EstadoSolicitud.pendiente:
+        return const Color(0xFFE6A23C);
+      case EstadoSolicitud.enProceso:
+        return const Color(0xFF5B8DEF);
+      case EstadoSolicitud.autorizado:
+        return const Color(0xFF67C23A);
+      case EstadoSolicitud.observado:
+        return const Color(0xFFEF6B6B);
+    }
+  }
+
+  Color get backgroundColor {
+    return color.withOpacity(0.1);
+  }
+
+  IconData get icon {
+    switch (this) {
+      case EstadoSolicitud.pendiente:
+        return Icons.schedule_rounded;
+      case EstadoSolicitud.enProceso:
+        return Icons.sync_rounded;
+      case EstadoSolicitud.autorizado:
+        return Icons.check_circle_outline_rounded;
+      case EstadoSolicitud.observado:
+        return Icons.info_outline_rounded;
+    }
+  }
 }
 
-/// Item de solicitud
+// ─── Item de lista para autorización ─────────────────────────────────────────
+class SolicitudCompraListaItem {
+  final String solComCabId;
+  final int tipOpeCompId;
+  final String tipo;
+  final String numero;
+  final DateTime fecha;
+  final String usuario;
+  final String area;
+
+  SolicitudCompraListaItem({
+    required this.solComCabId,
+    required this.tipOpeCompId,
+    required this.tipo,
+    required this.numero,
+    required this.fecha,
+    required this.usuario,
+    required this.area,
+  });
+
+  factory SolicitudCompraListaItem.fromJson(Map<String, dynamic> json) =>
+      SolicitudCompraListaItem(
+        solComCabId: json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
+        tipOpeCompId: json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
+        tipo: json['tipo'] ?? json['Tipo'] ?? '',
+        numero: json['numero'] ?? json['Numero'] ?? '',
+        fecha: DateTime.tryParse(json['fecha'] ?? json['Fecha'] ?? '') ?? DateTime.now(),
+        usuario: json['usuario'] ?? json['Usuario'] ?? '',
+        area: json['area'] ?? json['Area'] ?? '',
+      );
+
+  String get fechaFormateada =>
+      '${fecha.day.toString().padLeft(2, '0')}/'
+      '${fecha.month.toString().padLeft(2, '0')}/'
+      '${fecha.year}';
+
+  TipoSolicitudCompra get tipoEnum => TipoSolicitudCompraExtension.fromString(tipo);
+}
+
+// ─── Encabezado de detalle ───────────────────────────────────────────────────
+class SolicitudCompraEncabezado {
+  final String numero;
+  final DateTime? fecha;
+  final String gds;
+  final String descripcionGds;
+  final String area;
+  final String cc;
+  final String observacion;
+  final String usoMotivo;
+
+  SolicitudCompraEncabezado({
+    required this.numero,
+    this.fecha,
+    required this.gds,
+    required this.descripcionGds,
+    required this.area,
+    required this.cc,
+    required this.observacion,
+    required this.usoMotivo,
+  });
+
+factory SolicitudCompraEncabezado.fromJson(Map<String, dynamic> json) =>
+      SolicitudCompraEncabezado(
+        numero: json['numero'] ?? json['Numero'] ?? '',
+        fecha: json['fecha'] != null
+            ? DateTime.tryParse(json['fecha'].toString())
+            : json['Fecha'] != null
+                ? DateTime.tryParse(json['Fecha'].toString())
+                : null,
+        gds: json['gds'] ?? json['GDS'] ?? json['Gds'] ?? json['GDS'] ?? json['Gds'] ?? '',
+        descripcionGds: json['descripcionGds'] ?? json['DescripcionGDS'] ?? json['DescripcionGds'] ?? json['DESCRIPCIONGDS'] ?? json['descripcion_gds'] ?? json['Descripcion_GDS'] ?? json['descGds'] ?? json['DescGds'] ?? json['descripcionGDS'] ?? '',
+        area: json['area'] ?? json['Area'] ?? '',
+        cc: json['cc'] ?? json['CC'] ?? '',
+        observacion: json['observacion'] ?? json['Observacion'] ?? '',
+        usoMotivo: json['usoMotivo'] ?? json['UsoMotivo'] ?? '',
+      );
+
+  String get fechaFormateada {
+    if (fecha == null) return '';
+    return '${fecha!.day.toString().padLeft(2, '0')}/'
+           '${fecha!.month.toString().padLeft(2, '0')}/'
+           '${fecha!.year}';
+  }
+}
+
+// ─── Item de detalle ─────────────────────────────────────────────────────────
+class SolicitudCompraDetalleItem {
+  final String cc;
+  final String ccDes;
+  final String item;
+  final String itemDes;
+  final double cantidad;
+  final String und;
+  final String monedaId;
+  final String monedaAbrev;
+  final double? montoReferencial;
+  final double? subtotal;
+
+  SolicitudCompraDetalleItem({
+    required this.cc,
+    required this.ccDes,
+    required this.item,
+    required this.itemDes,
+    required this.cantidad,
+    required this.und,
+    required this.monedaId,
+    required this.monedaAbrev,
+    this.montoReferencial,
+    this.subtotal,
+  });
+
+  factory SolicitudCompraDetalleItem.fromJson(Map<String, dynamic> json) =>
+      SolicitudCompraDetalleItem(
+        cc: json['cc'] ?? json['CC'] ?? '',
+        ccDes: json['ccDes'] ?? json['CCDes'] ?? '',
+        item: json['item'] ?? json['Item'] ?? '',
+        itemDes: json['itemDes'] ?? json['ItemDes'] ?? '',
+        cantidad: (json['cantidad'] as num?)?.toDouble() ?? (json['Cantidad'] as num?)?.toDouble() ?? 0,
+        und: json['und'] ?? json['Und'] ?? '',
+        monedaId: json['monedaId'] ?? json['MonedaId'] ?? '',
+        monedaAbrev: json['monedaAbrev'] ?? json['MonedaAbrev'] ?? 'S/',
+        montoReferencial: (json['montoReferencial'] as num?)?.toDouble() ?? (json['MontoReferencial'] as num?)?.toDouble(),
+        subtotal: (json['subtotal'] as num?)?.toDouble() ?? (json['Subtotal'] as num?)?.toDouble(),
+      );
+
+  String get monedaSimbolo => monedaAbrev;
+
+  String _formatNumber(double value, String simbolo) {
+    if (simbolo.isEmpty) {
+      final formatter = NumberFormat('#,##0.00', 'en_US');
+      return formatter.format(value);
+    }
+    final formatter = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: simbolo,
+      decimalDigits: 2,
+    );
+    return formatter.format(value);
+  }
+
+  String get montoReferencialFormateado {
+    final val = montoReferencial ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+
+  String get subtotalFormateado {
+    final val = subtotal ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+}
+
+// ─── Item de solicitud (para uso interno) ────────────────────────────────────
 class ItemSolicitud {
   final String id;
-  final String codigo; // Código de 8 caracteres
+  final String codigo;
   final String descripcion;
-  final String unidadMedida; // Unidad de medida abreviada (UND, KG, LT, etc.)
+  final String unidadMedida;
   final int cantidad;
   final double precioUnitario;
   final double subtotal;
@@ -154,7 +359,7 @@ class ItemSolicitud {
   });
 
   factory ItemSolicitud.fromJson(Map<String, dynamic> json) {
-    final cantidad = json['cantidad'] ?? 1;
+    final cantidad = (json['cantidad'] as num?)?.toInt() ?? 1;
     final precioUnitario = (json['precioUnitario'] as num?)?.toDouble() ?? 0.0;
     return ItemSolicitud(
       id: json['itemId'] ?? '',
@@ -167,7 +372,6 @@ class ItemSolicitud {
     );
   }
 
-  /// Formato de precio unitario
   String get precioUnitarioFormateado {
     return precioUnitario.toStringAsFixed(2).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -175,7 +379,6 @@ class ItemSolicitud {
         );
   }
 
-  /// Formato de subtotal
   String get subtotalFormateado {
     return subtotal.toStringAsFixed(2).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -184,7 +387,7 @@ class ItemSolicitud {
   }
 }
 
-/// Modelo principal de Solicitud de Compra
+// ─── Modelo principal de Solicitud de Compra ─────────────────────────────────
 class SolicitudCompra {
   final String id;
   final String codigo;
@@ -212,31 +415,59 @@ class SolicitudCompra {
     required this.estado,
   });
 
-  factory SolicitudCompra.fromJson(Map<String, dynamic> json) {
+  factory SolicitudCompra.fromListaItem(SolicitudCompraListaItem item) {
     return SolicitudCompra(
-      id: json['solicitudId'] ?? '',
-      codigo: json['codigo'] ?? '',
-      tipo: TipoSolicitudCompraExtension.fromCodigo(json['tipoSolicitud']),
-      areaSolicitante: json['areaSolicitante'] ?? '',
-      solicitanteNombre: json['solicitante']?['nombreCompleto'] ?? '',
-      solicitanteId: json['solicitante']?['trabId'] ?? '',
-      fechaSolicitud: DateTime.tryParse(json['fechaSolicitud'] ?? '') ?? DateTime.now(),
-      montoTotal: (json['montoTotal'] as num?)?.toDouble() ?? 0.0,
-      sustento: json['sustento'] ?? json['observaciones'],
-      items: (json['items'] as List<dynamic>?)
-              ?.map((item) => ItemSolicitud.fromJson(item))
-              .toList() ??
-          [],
-      estado: EstadoSolicitudExtension.fromString(json['estado']),
+      id: item.solComCabId,
+      codigo: item.numero,
+      tipo: item.tipoEnum,
+      areaSolicitante: item.area,
+      solicitanteNombre: item.usuario,
+      solicitanteId: '',
+      fechaSolicitud: item.fecha,
+      montoTotal: 0.0,
+      sustento: null,
+      items: [],
+      estado: EstadoSolicitud.pendiente,
     );
   }
 
-  /// Formato de fecha corta dd/MM/yyyy
+  factory SolicitudCompra.fromDetalle({
+    required SolicitudCompraListaItem listaItem,
+    required SolicitudCompraEncabezado? encabezado,
+    required List<SolicitudCompraDetalleItem> detalleItems,
+    EstadoSolicitud? estado,
+  }) {
+    final items = detalleItems.map((d) => ItemSolicitud(
+      id: d.item,
+      codigo: d.item,
+      descripcion: d.itemDes,
+      unidadMedida: d.und,
+      cantidad: d.cantidad.toInt(),
+      precioUnitario: d.montoReferencial ?? 0,
+      subtotal: d.subtotal ?? 0,
+    )).toList();
+
+    final total = detalleItems.fold(0.0, (sum, d) => sum + (d.subtotal ?? 0));
+
+    return SolicitudCompra(
+      id: listaItem.solComCabId,
+      codigo: listaItem.numero,
+      tipo: listaItem.tipoEnum,
+      areaSolicitante: encabezado?.area ?? listaItem.area,
+      solicitanteNombre: listaItem.usuario,
+      solicitanteId: '',
+      fechaSolicitud: listaItem.fecha,
+      montoTotal: total,
+      sustento: encabezado?.usoMotivo ?? encabezado?.observacion,
+      items: items,
+      estado: estado ?? EstadoSolicitud.pendiente,
+    );
+  }
+
   String get fechaFormateada {
     return '${fechaSolicitud.day.toString().padLeft(2, '0')}/${fechaSolicitud.month.toString().padLeft(2, '0')}/${fechaSolicitud.year}';
   }
 
-  /// Formato de monto con separador de miles
   String get montoFormateado {
     if (montoTotal >= 1000) {
       return '${(montoTotal / 1000).toStringAsFixed(1)}K';
@@ -244,11 +475,170 @@ class SolicitudCompra {
     return montoTotal.toStringAsFixed(0);
   }
 
-  /// Formato de monto completo
   String get montoCompletoFormateado {
-    return montoTotal.toStringAsFixed(2).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+    final formatter = NumberFormat('#,###.00', 'es_PE');
+    return formatter.format(montoTotal);
+  }
+}
+
+// ─── Respuesta de lista de autorización ──────────────────────────────────────
+class SolicitudCompraAutorizacionResponse {
+  final BaseResponse baseResponse;
+  final List<SolicitudCompraListaItem> porAutorizar;
+  final List<SolicitudCompraListaItem> autorizados;
+
+  SolicitudCompraAutorizacionResponse({
+    required this.baseResponse,
+    required this.porAutorizar,
+    required this.autorizados,
+  });
+
+  factory SolicitudCompraAutorizacionResponse.fromJson(Map<String, dynamic> json) {
+    final rawBase = json['baseResponse'] ?? json;
+    final porAutorizarList = json['porAutorizar'] ?? [];
+    final autorizadosList = json['autorizados'] ?? [];
+
+    return SolicitudCompraAutorizacionResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      porAutorizar: (porAutorizarList as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      autorizados: (autorizadosList as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+}
+
+// ─── Respuesta de detalle ────────────────────────────────────────────────────
+class SolicitudCompraDetalleResponse {
+  final BaseResponse baseResponse;
+  final SolicitudCompraEncabezado? encabezado;
+  final List<SolicitudCompraDetalleItem> detalle;
+
+  SolicitudCompraDetalleResponse({
+    required this.baseResponse,
+    this.encabezado,
+    this.detalle = const [],
+  });
+
+  factory SolicitudCompraDetalleResponse.fromJson(Map<String, dynamic> json) {
+    final rawBase = json['baseResponse'] ?? json;
+    final rawEnc = json['Encabezado'] ?? json['encabezado'];
+    final rawDet = json['detalle'] ?? json['Detalle'] ?? [];
+
+    return SolicitudCompraDetalleResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      encabezado: rawEnc != null
+          ? SolicitudCompraEncabezado.fromJson(rawEnc as Map<String, dynamic>)
+          : null,
+      detalle: (rawDet as List<dynamic>)
+          .map((e) => SolicitudCompraDetalleItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+
+  double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
+
+  String get totalFormateado {
+    final valor = total;
+    final simbolo = detalle.isNotEmpty ? detalle.first.monedaAbrev : 'S/';
+    final formatter = NumberFormat('#,##0.00', 'en_US');
+    return '$simbolo ${formatter.format(valor)}';
+  }
+}
+
+// ─── Respuesta de acciones (autorizar/observar) ──────────────────────────────
+class SolicitudCompraActionResponse {
+  final bool success;
+  final String? message;
+  final String? solicitudId;
+  final String? estado;
+  final DateTime? fechaAccion;
+
+  SolicitudCompraActionResponse({
+    required this.success,
+    this.message,
+    this.solicitudId,
+    this.estado,
+    this.fechaAccion,
+  });
+
+  factory SolicitudCompraActionResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return SolicitudCompraActionResponse(
+      success: json['success'] ?? false,
+      message: json['message'],
+      solicitudId: data?['solicitudId']?.toString(),
+      estado: data?['estado']?.toString(),
+      fechaAccion: data?['fechaAutorizacion'] != null
+          ? DateTime.tryParse(data?['fechaAutorizacion'])
+          : data?['fechaObservacion'] != null
+              ? DateTime.tryParse(data?['fechaObservacion'])
+              : null,
+    );
+  }
+
+  bool get esExitoso => success;
+}
+
+// ─── Respuesta de lista de solicitudes ──────────────────────────────
+class SolicitudListResponse extends BaseResponse {
+  final List<SolicitudCompraListaItem> solicitudes;
+  final int totalRegistros;
+
+  SolicitudListResponse({
+    required bool success,
+    String? message,
+    required this.solicitudes,
+    required this.totalRegistros,
+  }) : super(
+    success: success,
+    message: message,
+  );
+
+  // Constructor alternativo que acepta baseResponse
+  SolicitudListResponse.fromBaseResponse({
+    required BaseResponse baseResponse,
+    required this.solicitudes,
+    int totalRegistros = 0,
+  }) : totalRegistros = totalRegistros,
+       super(
+         success: baseResponse.success,
+         exception: baseResponse.exception,
+         tipoException: baseResponse.tipoException,
+         message: baseResponse.message,
+         errores: baseResponse.errores,
+       );
+
+  factory SolicitudListResponse.fromJson(Map<String, dynamic> json) {
+    // Intenta extraer solicitudes del nivel superior o de data
+    List<SolicitudCompraListaItem> items = [];
+    
+    // Si solicitudes está directamente en json
+    if (json['solicitudes'] is List<dynamic>) {
+      items = (json['solicitudes'] as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    // Si solicitudes viene en data
+    else if (json['data'] is Map<String, dynamic> && 
+             (json['data'] as Map<String, dynamic>)['solicitudes'] is List<dynamic>) {
+      final dataMap = json['data'] as Map<String, dynamic>;
+      items = (dataMap['solicitudes'] as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    return SolicitudListResponse(
+      success:        json['success']        ?? false,
+      message:        json['message'],
+      solicitudes:    items,
+      totalRegistros: json['totalRegistros'] ?? items.length,
+    );
   }
 }

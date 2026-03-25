@@ -51,6 +51,8 @@ enum TipoPresupuestoEmergencia {
     switch (value?.toUpperCase()) {
       case 'CARGAS DIVERSAS DE GESTION': return TipoPresupuestoEmergencia.cargasDiversas;
       case 'SERVICIOS DE TERCERO':       return TipoPresupuestoEmergencia.servicioTercero;
+      case 'SERVICIO DE TERCEROS':       return TipoPresupuestoEmergencia.servicioTercero;
+      case 'SERVICIO DE TERCERO':        return TipoPresupuestoEmergencia.servicioTercero;
       case 'CONSUMOS':                   return TipoPresupuestoEmergencia.consumo;
       case 'INVERSIONES':                return TipoPresupuestoEmergencia.inversiones;
       default:                           return TipoPresupuestoEmergencia.consumo;

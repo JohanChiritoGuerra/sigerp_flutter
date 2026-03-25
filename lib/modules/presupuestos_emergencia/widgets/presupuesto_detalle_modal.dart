@@ -356,9 +356,9 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
           // _buildInfoRow('Área', enc?.area ?? widget.presupuesto.area),
           _buildInfoRow('Área', widget.presupuesto.area),
           if ((enc?.gds ?? '').isNotEmpty)
-            _buildInfoRow('GDS', enc!.descripcionGds.isNotEmpty
-                ? enc.descripcionGds
-                : enc.gds),
+            _buildInfoRow('GDS', enc!.descripcionGds),
+                //? enc.descripcionGds
+                //: enc.gds),
           if ((enc?.cc ?? '').isNotEmpty)
             _buildInfoRow('C. Costo', enc!.cc),
           _buildInfoRow(

@@ -7,8 +7,6 @@ import 'services/solicitud_compra_service.dart';
 import 'widgets/solicitud_compra_card.dart';
 import 'widgets/solicitud_detalle_modal.dart';
 
-/// Pantalla de consulta de solicitudes de compra (solo lectura)
-/// Permite ver el historial de todas las solicitudes sin opciones de autorización
 class SolicitudCompraConsultaScreen extends StatefulWidget {
   const SolicitudCompraConsultaScreen({super.key});
 
@@ -24,8 +22,8 @@ class _SolicitudCompraConsultaScreenState
   final SolicitudCompraService _service = SolicitudCompraService();
   final TextEditingController _searchController = TextEditingController();
 
-  List<SolicitudCompra> _todasSolicitudes = [];
-  List<SolicitudCompra> _solicitudesFiltradas = [];
+  List<SolicitudCompraListaItem> _todasSolicitudes = [];
+  List<SolicitudCompraListaItem> _solicitudesFiltradas = [];
   bool _isLoading = true;
   String? _error;
 
@@ -73,51 +71,54 @@ class _SolicitudCompraConsultaScreenState
     }
 
     try {
-      // TODO: Implementar llamada real al API
-      // final solicitudes = await _service.obtenerTodasSolicitudes(
-      //   trabId: usuario.trabId ?? '',
-      //   empresaId: usuario.empresaId ?? '02',
-      // );
+      final result = await _service.obtenerListasAutorizacion(
+        usuario: usuario.webUser ?? '',
+        empresaId: usuario.empresaId ?? '02',
+      );
 
-      // Datos de prueba
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      setState(() {
-        _todasSolicitudes = _generarDatosPrueba();
-        _aplicarFiltros();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (result.esExitoso) {
+            // Combinar pendientes y autorizados para consulta
+            _todasSolicitudes = [...result.porAutorizar, ...result.autorizados];
+            _aplicarFiltros();
+          } else {
+            _error = result.baseResponse.message ?? 'Error al cargar los datos';
+          }
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Error al cargar solicitudes: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Error al cargar: $e';
+        });
+      }
     }
   }
 
   void _aplicarFiltros() {
-    List<SolicitudCompra> resultado = List.from(_todasSolicitudes);
+    List<SolicitudCompraListaItem> resultado = List.from(_todasSolicitudes);
 
-    // Filtrar por tab (estado)
+    // Filtrar por tab (estado) - En consulta, solo por tipo de lista
     switch (_tabController.index) {
       case 0: // Todos
         break;
       case 1: // Pendientes
-        resultado = resultado
-            .where((s) =>
-                s.estado == EstadoSolicitud.pendiente ||
-                s.estado == EstadoSolicitud.enProceso)
-            .toList();
+        // En consulta, mostrar los que están en porAutorizar
+        resultado = resultado.where((s) => 
+          _solicitudesPendientesIds.contains(s.solComCabId)
+        ).toList();
         break;
       case 2: // Autorizados
-        resultado = resultado
-            .where((s) => s.estado == EstadoSolicitud.autorizado)
-            .toList();
+        resultado = resultado.where((s) => 
+          _solicitudesAutorizadasIds.contains(s.solComCabId)
+        ).toList();
         break;
       case 3: // Observados
-        resultado = resultado
-            .where((s) => s.estado == EstadoSolicitud.observado)
-            .toList();
+        // Por ahora no tenemos observados en la lista
+        resultado = [];
         break;
     }
 
@@ -126,13 +127,13 @@ class _SolicitudCompraConsultaScreenState
       resultado = resultado.where((s) {
         switch (_filtroTipo) {
           case 'CM':
-            return s.tipo == TipoSolicitudCompra.compraMateriales;
+            return s.tipoEnum == TipoSolicitudCompra.compraMateriales;
           case 'AF':
-            return s.tipo == TipoSolicitudCompra.compraActivoFijo;
+            return s.tipoEnum == TipoSolicitudCompra.compraActivoFijo;
           case 'ST':
-            return s.tipo == TipoSolicitudCompra.servicioTercero;
+            return s.tipoEnum == TipoSolicitudCompra.servicioTercero;
           case 'CD':
-            return s.tipo == TipoSolicitudCompra.cargaDiversaGestion;
+            return s.tipoEnum == TipoSolicitudCompra.cargaDiversaGestion;
           default:
             return true;
         }
@@ -143,19 +144,17 @@ class _SolicitudCompraConsultaScreenState
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       resultado = resultado.where((s) {
-        return s.codigo.toLowerCase().contains(query) ||
-            (s.sustento?.toLowerCase().contains(query) ?? false) ||
-            s.solicitanteNombre.toLowerCase().contains(query) ||
-            s.areaSolicitante.toLowerCase().contains(query);
+        return s.numero.toLowerCase().contains(query) ||
+            s.usuario.toLowerCase().contains(query) ||
+            s.area.toLowerCase().contains(query);
       }).toList();
     }
 
     // Filtrar por rango de fechas
     if (_rangoFechas != null) {
       resultado = resultado.where((s) {
-        return s.fechaSolicitud.isAfter(_rangoFechas!.start) &&
-            s.fechaSolicitud
-                .isBefore(_rangoFechas!.end.add(const Duration(days: 1)));
+        return s.fecha.isAfter(_rangoFechas!.start) &&
+            s.fecha.isBefore(_rangoFechas!.end.add(const Duration(days: 1)));
       }).toList();
     }
 
@@ -164,219 +163,21 @@ class _SolicitudCompraConsultaScreenState
     });
   }
 
-  List<SolicitudCompra> _generarDatosPrueba() {
-    return [
-      SolicitudCompra(
-        id: '1',
-        codigo: 'SC-2026-00145',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'SISTEMAS',
-        solicitanteNombre: 'Juan Pérez García',
-        solicitanteId: '001',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 1)),
-        montoTotal: 12500.00,
-        sustento:
-            'Requerimiento urgente para renovación de equipos del área de desarrollo.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '01020304',
-              descripcion: 'Laptop HP Core i7 16GB RAM',
-              unidadMedida: 'UND',
-              cantidad: 5,
-              precioUnitario: 1800.00,
-              subtotal: 9000.00),
-          ItemSolicitud(
-              id: '2',
-              codigo: '01020512',
-              descripcion: 'Monitor 27" LG UltraWide',
-              unidadMedida: 'UND',
-              cantidad: 5,
-              precioUnitario: 700.00,
-              subtotal: 3500.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '2',
-        codigo: 'SC-2026-00142',
-        tipo: TipoSolicitudCompra.compraActivoFijo,
-        areaSolicitante: 'ENERGÍA',
-        solicitanteNombre: 'Carlos López Mendoza',
-        solicitanteId: '002',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 2)),
-        montoTotal: 45800.00,
-        sustento:
-            'Adquisición de generador eléctrico de respaldo para planta principal.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '05010001',
-              descripcion: 'Generador Eléctrico 50KW Caterpillar',
-              unidadMedida: 'UND',
-              cantidad: 1,
-              precioUnitario: 45800.00,
-              subtotal: 45800.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-      SolicitudCompra(
-        id: '3',
-        codigo: 'SC-2026-00140',
-        tipo: TipoSolicitudCompra.servicioTercero,
-        areaSolicitante: 'RECURSOS HUMANOS',
-        solicitanteNombre: 'María Torres Vega',
-        solicitanteId: '003',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 3)),
-        montoTotal: 8200.00,
-        sustento:
-            'Contratación de servicio de capacitación en seguridad ocupacional.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '09010101',
-              descripcion: 'Capacitación SST - 40 horas',
-              unidadMedida: 'SRV',
-              cantidad: 1,
-              precioUnitario: 8200.00,
-              subtotal: 8200.00),
-        ],
-        estado: EstadoSolicitud.observado,
-      ),
-      SolicitudCompra(
-        id: '4',
-        codigo: 'SC-2026-00138',
-        tipo: TipoSolicitudCompra.cargaDiversaGestion,
-        areaSolicitante: 'ADMINISTRACIÓN',
-        solicitanteNombre: 'Ana María Sánchez',
-        solicitanteId: '004',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 4)),
-        montoTotal: 3500.00,
-        sustento: 'Gastos de representación para evento corporativo.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '08050201',
-              descripcion: 'Catering evento corporativo',
-              unidadMedida: 'SRV',
-              cantidad: 1,
-              precioUnitario: 2500.00,
-              subtotal: 2500.00),
-          ItemSolicitud(
-              id: '2',
-              codigo: '08050305',
-              descripcion: 'Material promocional impreso',
-              unidadMedida: 'KIT',
-              cantidad: 1,
-              precioUnitario: 1000.00,
-              subtotal: 1000.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-      SolicitudCompra(
-        id: '5',
-        codigo: 'SC-2026-00135',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'LOGÍSTICA',
-        solicitanteNombre: 'Pedro Ramírez Luna',
-        solicitanteId: '005',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 5)),
-        montoTotal: 15300.00,
-        sustento:
-            'Compra de repuestos para mantenimiento preventivo de flota vehicular.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '03020101',
-              descripcion: 'Kit de frenos delanteros',
-              unidadMedida: 'JGO',
-              cantidad: 10,
-              precioUnitario: 850.00,
-              subtotal: 8500.00),
-          ItemSolicitud(
-              id: '2',
-              codigo: '03020205',
-              descripcion: 'Filtros de aceite motor',
-              unidadMedida: 'UND',
-              cantidad: 20,
-              precioUnitario: 120.00,
-              subtotal: 2400.00),
-        ],
-        estado: EstadoSolicitud.pendiente,
-      ),
-      SolicitudCompra(
-        id: '6',
-        codigo: 'SC-2026-00130',
-        tipo: TipoSolicitudCompra.servicioTercero,
-        areaSolicitante: 'MANTENIMIENTO',
-        solicitanteNombre: 'Luis Fernández Castro',
-        solicitanteId: '006',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 7)),
-        montoTotal: 18500.00,
-        sustento: 'Servicio de mantenimiento correctivo de maquinaria.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '09020101',
-              descripcion: 'Mant. correctivo tractor John Deere',
-              unidadMedida: 'SRV',
-              cantidad: 1,
-              precioUnitario: 8500.00,
-              subtotal: 8500.00),
-          ItemSolicitud(
-              id: '2',
-              codigo: '09020102',
-              descripcion: 'Mant. correctivo cosechadora',
-              unidadMedida: 'SRV',
-              cantidad: 1,
-              precioUnitario: 10000.00,
-              subtotal: 10000.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-      SolicitudCompra(
-        id: '7',
-        codigo: 'SC-2026-00125',
-        tipo: TipoSolicitudCompra.compraMateriales,
-        areaSolicitante: 'COSECHA',
-        solicitanteNombre: 'Roberto Díaz Paredes',
-        solicitanteId: '007',
-        fechaSolicitud: DateTime.now().subtract(const Duration(days: 10)),
-        montoTotal: 22000.00,
-        sustento: 'Compra de herramientas para temporada de cosecha.',
-        items: [
-          ItemSolicitud(
-              id: '1',
-              codigo: '02010101',
-              descripcion: 'Machetes de acero templado',
-              unidadMedida: 'UND',
-              cantidad: 50,
-              precioUnitario: 120.00,
-              subtotal: 6000.00),
-          ItemSolicitud(
-              id: '2',
-              codigo: '02010205',
-              descripcion: 'Guantes de cuero reforzado',
-              unidadMedida: 'PAR',
-              cantidad: 100,
-              precioUnitario: 45.00,
-              subtotal: 4500.00),
-        ],
-        estado: EstadoSolicitud.autorizado,
-      ),
-    ];
-  }
+  // Para poder filtrar por estado en consulta
+  Set<String> get _solicitudesPendientesIds => 
+      _todasSolicitudes.where((s) => s.tipOpeCompId > 0).map((s) => s.solComCabId).toSet();
+  
+  Set<String> get _solicitudesAutorizadasIds => 
+      _todasSolicitudes.where((s) => s.tipOpeCompId > 0).map((s) => s.solComCabId).toSet();
 
-  void _mostrarDetalleSolicitud(SolicitudCompra solicitud) {
+  void _mostrarDetalleSolicitud(SolicitudCompraListaItem solicitud) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => SolicitudDetalleModal(
         solicitud: solicitud,
-        mostrarAcciones: false, // Solo lectura
-        onAutorizar: null,
-        onObservar: null,
+        mostrarAcciones: false,
       ),
     );
   }
@@ -403,7 +204,6 @@ class _SolicitudCompraConsultaScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
               Center(
                 child: Container(
                   width: 40,
@@ -415,8 +215,6 @@ class _SolicitudCompraConsultaScreenState
                   ),
                 ),
               ),
-
-              // Título
               const Text(
                 'Filtros de búsqueda',
                 style: TextStyle(
@@ -425,8 +223,6 @@ class _SolicitudCompraConsultaScreenState
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Filtro por tipo
               const Text(
                 'Tipo de Solicitud',
                 style: TextStyle(
@@ -482,8 +278,6 @@ class _SolicitudCompraConsultaScreenState
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Filtro por rango de fechas
               const Text(
                 'Rango de fechas',
                 style: TextStyle(
@@ -540,8 +334,6 @@ class _SolicitudCompraConsultaScreenState
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Botones
               Row(
                 children: [
                   Expanded(
@@ -604,8 +396,7 @@ class _SolicitudCompraConsultaScreenState
       selectedColor: (color ?? Color(AppColors.primaryColor)).withOpacity(0.2),
       checkmarkColor: color ?? Color(AppColors.primaryColor),
       labelStyle: TextStyle(
-        color:
-            selected ? (color ?? Color(AppColors.primaryColor)) : Colors.grey[700],
+        color: selected ? (color ?? Color(AppColors.primaryColor)) : Colors.grey[700],
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
@@ -641,7 +432,6 @@ class _SolicitudCompraConsultaScreenState
           preferredSize: const Size.fromHeight(100),
           child: Column(
             children: [
-              // Barra de búsqueda
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
@@ -653,7 +443,7 @@ class _SolicitudCompraConsultaScreenState
                     controller: _searchController,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Buscar por código, descripción...',
+                      hintText: 'Buscar por código, solicitante...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
                       prefixIcon: Icon(
                         Icons.search,
@@ -679,7 +469,6 @@ class _SolicitudCompraConsultaScreenState
                 ),
               ),
               const SizedBox(height: 12),
-              // Tabs
               TabBar(
                 controller: _tabController,
                 isScrollable: true,
@@ -710,11 +499,7 @@ class _SolicitudCompraConsultaScreenState
                       children: [
                         const Text('Pendientes'),
                         const SizedBox(width: 4),
-                        _buildBadge(_todasSolicitudes
-                            .where((s) =>
-                                s.estado == EstadoSolicitud.pendiente ||
-                                s.estado == EstadoSolicitud.enProceso)
-                            .length),
+                        _buildBadge(_solicitudesPendientesIds.length),
                       ],
                     ),
                   ),
@@ -724,10 +509,7 @@ class _SolicitudCompraConsultaScreenState
                       children: [
                         const Text('Autorizados'),
                         const SizedBox(width: 4),
-                        _buildBadge(_todasSolicitudes
-                            .where(
-                                (s) => s.estado == EstadoSolicitud.autorizado)
-                            .length),
+                        _buildBadge(_solicitudesAutorizadasIds.length),
                       ],
                     ),
                   ),
@@ -737,9 +519,7 @@ class _SolicitudCompraConsultaScreenState
                       children: [
                         const Text('Observados'),
                         const SizedBox(width: 4),
-                        _buildBadge(_todasSolicitudes
-                            .where((s) => s.estado == EstadoSolicitud.observado)
-                            .length),
+                        _buildBadge(0),
                       ],
                     ),
                   ),
