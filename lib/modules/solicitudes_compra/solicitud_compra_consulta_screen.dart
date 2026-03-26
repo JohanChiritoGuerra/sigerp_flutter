@@ -22,8 +22,14 @@ class _SolicitudCompraConsultaScreenState
   final SolicitudCompraService _service = SolicitudCompraService();
   final TextEditingController _searchController = TextEditingController();
 
-  List<SolicitudCompraListaItem> _todasSolicitudes = [];
-  List<SolicitudCompraListaItem> _solicitudesFiltradas = [];
+  // Datos desde el API
+  List<SolicitudCompraConsultaItem> _porAutorizar = [];
+  List<SolicitudCompraConsultaItem> _autorizados = [];
+  List<SolicitudCompraConsultaItem> _anuladosRechazados = [];
+  
+  // Listas filtradas para mostrar
+  List<SolicitudCompraConsultaItem> _itemsFiltrados = [];
+  
   bool _isLoading = true;
   String? _error;
 
@@ -34,7 +40,7 @@ class _SolicitudCompraConsultaScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // 3 tabs: Por Autorizar, Autorizados, Anulados/Rechazados
     _tabController.addListener(_onTabChanged);
     _cargarSolicitudes();
   }
@@ -71,7 +77,7 @@ class _SolicitudCompraConsultaScreenState
     }
 
     try {
-      final result = await _service.obtenerListasAutorizacion(
+      final result = await _service.obtenerListasConsulta(
         usuario: usuario.webUser ?? '',
         empresaId: usuario.empresaId ?? '02',
       );
@@ -79,8 +85,9 @@ class _SolicitudCompraConsultaScreenState
       if (mounted) {
         setState(() {
           if (result.esExitoso) {
-            // Combinar pendientes y autorizados para consulta
-            _todasSolicitudes = [...result.porAutorizar, ...result.autorizados];
+            _porAutorizar = result.porAutorizar;
+            _autorizados = result.autorizados;
+            _anuladosRechazados = result.anuladosRechazados;
             _aplicarFiltros();
           } else {
             _error = result.baseResponse.message ?? 'Error al cargar los datos';
@@ -98,46 +105,50 @@ class _SolicitudCompraConsultaScreenState
     }
   }
 
-  void _aplicarFiltros() {
-    List<SolicitudCompraListaItem> resultado = List.from(_todasSolicitudes);
-
-    // Filtrar por tab (estado) - En consulta, solo por tipo de lista
+  /// Obtiene la lista actual según el tab seleccionado
+  List<SolicitudCompraConsultaItem> _getListaActual() {
     switch (_tabController.index) {
-      case 0: // Todos
-        break;
-      case 1: // Pendientes
-        // En consulta, mostrar los que están en porAutorizar
-        resultado = resultado.where((s) => 
-          _solicitudesPendientesIds.contains(s.solComCabId)
-        ).toList();
-        break;
-      case 2: // Autorizados
-        resultado = resultado.where((s) => 
-          _solicitudesAutorizadasIds.contains(s.solComCabId)
-        ).toList();
-        break;
-      case 3: // Observados
-        // Por ahora no tenemos observados en la lista
-        resultado = [];
-        break;
+      case 0: // Por Autorizar
+        return _porAutorizar;
+      case 1: // Autorizados
+        return _autorizados;
+      case 2: // Anulados/Rechazados
+        return _anuladosRechazados;
+      default:
+        return [];
     }
+  }
 
-    // Filtrar por tipo
+  void _aplicarFiltros() {
+    debugPrint('🔍 Aplicando filtros - Tipo: $_filtroTipo, Búsqueda: ${_searchController.text}');
+    List<SolicitudCompraConsultaItem> resultado = List.from(_getListaActual());
+    debugPrint('📊 Total antes de filtrar por tipo: ${resultado.length}');
+
+    // Filtrar por tipo usando tipOpeCompId
     if (_filtroTipo != 'TODOS') {
       resultado = resultado.where((s) {
+        bool match;
         switch (_filtroTipo) {
           case 'CM':
-            return s.tipoEnum == TipoSolicitudCompra.compraMateriales;
+            match = s.tipOpeCompId == 1; // Materiales
+            break;
           case 'AF':
-            return s.tipoEnum == TipoSolicitudCompra.compraActivoFijo;
+            match = s.tipOpeCompId == 4; // Activo Fijo
+            break;
           case 'ST':
-            return s.tipoEnum == TipoSolicitudCompra.servicioTercero;
+            match = s.tipOpeCompId == 3; // Servicio Tercero
+            break;
           case 'CD':
-            return s.tipoEnum == TipoSolicitudCompra.cargaDiversaGestion;
+            match = s.tipOpeCompId == 5; // Carga Diversa
+            break;
           default:
-            return true;
+            match = true;
         }
+        debugPrint('🔎 Item: ${s.numero} - tipOpeCompId: ${s.tipOpeCompId} - Match: $match');
+        return match;
       }).toList();
+      
+      debugPrint('📊 Después de filtrar por tipo: ${resultado.length}');
     }
 
     // Filtrar por búsqueda
@@ -145,8 +156,7 @@ class _SolicitudCompraConsultaScreenState
     if (query.isNotEmpty) {
       resultado = resultado.where((s) {
         return s.numero.toLowerCase().contains(query) ||
-            s.usuario.toLowerCase().contains(query) ||
-            s.area.toLowerCase().contains(query);
+            s.usuario.toLowerCase().contains(query);
       }).toList();
     }
 
@@ -159,37 +169,237 @@ class _SolicitudCompraConsultaScreenState
     }
 
     setState(() {
-      _solicitudesFiltradas = resultado;
+      _itemsFiltrados = resultado;
     });
   }
 
-  // Para poder filtrar por estado en consulta
-  Set<String> get _solicitudesPendientesIds => 
-      _todasSolicitudes.where((s) => s.tipOpeCompId > 0).map((s) => s.solComCabId).toSet();
-  
-  Set<String> get _solicitudesAutorizadasIds => 
-      _todasSolicitudes.where((s) => s.tipOpeCompId > 0).map((s) => s.solComCabId).toSet();
+  void _mostrarDetalleSolicitud(SolicitudCompraConsultaItem solicitud) {
+    // Convertir a SolicitudCompraListaItem para el modal
+    final listaItem = SolicitudCompraListaItem(
+      solComCabId: solicitud.solComCabId,
+      tipOpeCompId: solicitud.tipOpeCompId,
+      tipo: solicitud.tipo,
+      numero: solicitud.numero,
+      fecha: solicitud.fecha,
+      usuario: solicitud.usuario,
+      area: solicitud.area,
+    );
 
-  void _mostrarDetalleSolicitud(SolicitudCompraListaItem solicitud) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => SolicitudDetalleModal(
-        solicitud: solicitud,
-        mostrarAcciones: false,
+        solicitud: listaItem,
+        mostrarAcciones: false, // En consulta no se pueden autorizar/observar
+        esConsulta: true, // ← Indicar que es consulta
       ),
     );
   }
 
   void _mostrarFiltros() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildFiltrosModal(),
-    );
-  }
+  // Crear copias temporales de los filtros actuales
+  String tempFiltroTipo = _filtroTipo;
+  DateTimeRange? tempRangoFechas = _rangoFechas;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setModalState) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Filtros de búsqueda',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Tipo de Solicitud',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildFilterChip(
+                    label: 'Todos',
+                    selected: tempFiltroTipo == 'TODOS',
+                    onSelected: (selected) {
+                      setModalState(() => tempFiltroTipo = 'TODOS');
+                    },
+                  ),
+                  _buildFilterChip(
+                    label: 'Materiales',
+                    selected: tempFiltroTipo == 'CM',
+                    color: TipoSolicitudCompra.compraMateriales.color,
+                    onSelected: (selected) {
+                      setModalState(() => tempFiltroTipo = 'CM');
+                    },
+                  ),
+                  _buildFilterChip(
+                    label: 'Activo Fijo',
+                    selected: tempFiltroTipo == 'AF',
+                    color: TipoSolicitudCompra.compraActivoFijo.color,
+                    onSelected: (selected) {
+                      setModalState(() => tempFiltroTipo = 'AF');
+                    },
+                  ),
+                  _buildFilterChip(
+                    label: 'Servicio',
+                    selected: tempFiltroTipo == 'ST',
+                    color: TipoSolicitudCompra.servicioTercero.color,
+                    onSelected: (selected) {
+                      setModalState(() => tempFiltroTipo = 'ST');
+                    },
+                  ),
+                  _buildFilterChip(
+                    label: 'Carga Diversa',
+                    selected: tempFiltroTipo == 'CD',
+                    color: TipoSolicitudCompra.cargaDiversaGestion.color,
+                    onSelected: (selected) {
+                      setModalState(() => tempFiltroTipo = 'CD');
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Rango de fechas',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime.now(),
+                    initialDateRange: tempRangoFechas,
+                    locale: const Locale('es', 'ES'),
+                  );
+                  if (picked != null) {
+                    setModalState(() => tempRangoFechas = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.date_range, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tempRangoFechas != null
+                              ? '${_formatDate(tempRangoFechas!.start)} - ${_formatDate(tempRangoFechas!.end)}'
+                              : 'Seleccionar rango de fechas',
+                          style: TextStyle(
+                            color: tempRangoFechas != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                      if (tempRangoFechas != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            setModalState(() => tempRangoFechas = null);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempFiltroTipo = 'TODOS';
+                          tempRangoFechas = null;
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Limpiar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Aplicar los filtros temporales a los reales
+                        setState(() {
+                          _filtroTipo = tempFiltroTipo;
+                          _rangoFechas = tempRangoFechas;
+                        });
+                        Navigator.pop(context);
+                        _aplicarFiltros();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(AppColors.primaryColor),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Aplicar',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
 
   Widget _buildFiltrosModal() {
     return StatefulBuilder(
@@ -443,7 +653,7 @@ class _SolicitudCompraConsultaScreenState
                     controller: _searchController,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Buscar por código, solicitante...',
+                      hintText: 'Buscar por número, solicitante...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
                       prefixIcon: Icon(
                         Icons.search,
@@ -483,46 +693,9 @@ class _SolicitudCompraConsultaScreenState
                 ),
                 labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                 tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Todos'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_todasSolicitudes.length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Pendientes'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_solicitudesPendientesIds.length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Autorizados'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_solicitudesAutorizadasIds.length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Observados'),
-                        const SizedBox(width: 4),
-                        _buildBadge(0),
-                      ],
-                    ),
-                  ),
+                  _buildTab('POR AUTORIZAR', _porAutorizar.length),
+                  _buildTab('AUTORIZADOS', _autorizados.length),
+                  _buildTab('ANULADOS/RECHAZADOS', _anuladosRechazados.length),
                 ],
               ),
             ],
@@ -537,19 +710,30 @@ class _SolicitudCompraConsultaScreenState
     );
   }
 
-  Widget _buildBadge(int count) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        count.toString(),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+  Widget _buildTab(String label, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -577,7 +761,7 @@ class _SolicitudCompraConsultaScreenState
   }
 
   Widget _buildListView() {
-    if (_solicitudesFiltradas.isEmpty) {
+    if (_itemsFiltrados.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -585,7 +769,7 @@ class _SolicitudCompraConsultaScreenState
             Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'No hay solicitudes',
+              _getMensajeVacio(),
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 16,
@@ -593,7 +777,7 @@ class _SolicitudCompraConsultaScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'No se encontraron solicitudes con los filtros seleccionados',
+              'No se encontraron solicitudes',
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 14,
@@ -609,13 +793,14 @@ class _SolicitudCompraConsultaScreenState
       onRefresh: _cargarSolicitudes,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _solicitudesFiltradas.length,
+        itemCount: _itemsFiltrados.length,
         itemBuilder: (context, index) {
-          final solicitud = _solicitudesFiltradas[index];
+          final solicitud = _itemsFiltrados[index];
+          // Pasar directamente el item de consulta al card
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: SolicitudCompraCard(
-              solicitud: solicitud,
+              solicitud: solicitud, // ← Pasar SolicitudCompraConsultaItem
               onTap: () => _mostrarDetalleSolicitud(solicitud),
               mostrarEstado: true,
             ),
@@ -623,5 +808,18 @@ class _SolicitudCompraConsultaScreenState
         },
       ),
     );
+  }
+
+  String _getMensajeVacio() {
+    switch (_tabController.index) {
+      case 0:
+        return 'No hay solicitudes por autorizar';
+      case 1:
+        return 'No hay solicitudes autorizadas';
+      case 2:
+        return 'No hay solicitudes anuladas o rechazadas';
+      default:
+        return 'No hay solicitudes';
+    }
   }
 }

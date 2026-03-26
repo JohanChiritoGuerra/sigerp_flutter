@@ -313,6 +313,10 @@ class SolicitudCompraConsultaItem extends SolicitudCompraItemBase {
   });
 
   factory SolicitudCompraConsultaItem.fromJson(Map<String, dynamic> json) {
+    // Determinar el tipo de tab según los campos presentes
+    final hasUsuarioAtencion = json.containsKey('usuarioAtencion') || json.containsKey('UsuarioAtencion');
+    final hasEstado = json.containsKey('estado') || json.containsKey('Estado');
+
     return SolicitudCompraConsultaItem(
       solComCabId: json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
       tipOpeCompId: json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
@@ -323,12 +327,10 @@ class SolicitudCompraConsultaItem extends SolicitudCompraItemBase {
       area: json['area'] ?? json['Area'] ?? '',
       estadoAutorizacion: json['estadoAutorizacion'] ?? 0,
       estado: json['estado'] ?? json['Estado'],
-      usuarioAtencion: json['usuarioAtencion'] ?? json['UsuarioAtencion'],
-      fechaHoraAtencion: json['fechaHoraAtencion'] != null
-          ? DateTime.tryParse(json['fechaHoraAtencion'].toString())
-          : json['FechaHoraAtencion'] != null
-              ? DateTime.tryParse(json['FechaHoraAtencion'].toString())
-              : null,
+      usuarioAtencion: hasUsuarioAtencion ? (json['usuarioAtencion'] ?? json['UsuarioAtencion']) : null,
+      fechaHoraAtencion: hasUsuarioAtencion && (json['fechaHoraAtencion'] != null || json['FechaHoraAtencion'] != null)
+          ? DateTime.tryParse((json['fechaHoraAtencion'] ?? json['FechaHoraAtencion']).toString())
+          : null,
     );
   }
 
@@ -336,7 +338,14 @@ class SolicitudCompraConsultaItem extends SolicitudCompraItemBase {
   EstadoSolicitud get estadoSolicitud =>
       EstadoSolicitudExtension.fromEstadoAutorizacion(estadoAutorizacion);
 
-  String get fechaHoraAtencionFormateada {
+  // Getter para el estado textual según el tab
+  String get estadoTexto {
+    if (estado != null && estado!.isNotEmpty) return estado!;
+    if (usuarioAtencion != null) return 'AUTORIZADO POR: ${usuarioAtencion}';
+    return estadoSolicitud.nombre;
+  }
+
+   String get fechaHoraAtencionFormateada {
     if (fechaHoraAtencion == null) return '';
     return '${fechaHoraAtencion!.day.toString().padLeft(2, '0')}/'
         '${fechaHoraAtencion!.month.toString().padLeft(2, '0')}/'

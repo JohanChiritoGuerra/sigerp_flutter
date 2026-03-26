@@ -81,41 +81,52 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
   }
 
   Future<void> _cargarDetalle() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
 
-    try {
-      final authService = context.read<AuthService>();
-      final usuario = authService.usuario;
+  try {
+    final authService = context.read<AuthService>();
+    final usuario = authService.usuario;
 
-      final result = await _service.obtenerDetalle(
+    PresupuestoEmergenciaDetalleResponse result;
+    
+    if (widget.modoConsulta) {
+      result = await _service.obtenerDetalleConsulta(
         id: widget.presupuesto.idPresupuestoEmergencia,
         idSubtipo: widget.presupuesto.idSubtipoPresupuesto,
         usuario: usuario?.webUser ?? '',
         empresaId: usuario?.empresaId ?? '02',
       );
+    } else {
+      result = await _service.obtenerDetalle(
+        id: widget.presupuesto.idPresupuestoEmergencia,
+        idSubtipo: widget.presupuesto.idSubtipoPresupuesto,
+        usuario: usuario?.webUser ?? '',
+        empresaId: usuario?.empresaId ?? '02',
+      );
+    }
 
-      if (mounted) {
-        setState(() {
-          if (result.esExitoso) {
-            _detalle = result;
-          } else {
-            _error = result.baseResponse.message ?? 'Error al cargar detalle';
-          }
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _error = 'Error: $e';
-        });
-      }
+    if (mounted) {
+      setState(() {
+        if (result.esExitoso) {
+          _detalle = result;
+        } else {
+          _error = result.baseResponse.message ?? 'Error al cargar detalle';
+        }
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Error: $e';
+      });
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -341,8 +352,12 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
   Widget _buildInformacionGeneral(
     _ModalPastel pastel,
     PresupuestoEmergenciaEncabezado? enc,
-    String totalFormateado, // ← Quitar parámetro moneda
+    String totalFormateado, 
   ) {
+    final areaMostrar = widget.presupuesto.area.isNotEmpty 
+    ? widget.presupuesto.area 
+    : (enc?.area ?? '—');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -353,8 +368,7 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
         children: [
           _buildInfoRow('Número', enc?.numero ?? widget.presupuesto.numero),
           _buildInfoRow('Usuario', widget.presupuesto.usuario),
-          // _buildInfoRow('Área', enc?.area ?? widget.presupuesto.area),
-          _buildInfoRow('Área', widget.presupuesto.area),
+          _buildInfoRow('Área', areaMostrar),
           if ((enc?.gds ?? '').isNotEmpty)
             _buildInfoRow('GDS', enc!.descripcionGds),
                 //? enc.descripcionGds

@@ -20,8 +20,10 @@ class _SCModalPastel {
 }
 
 class SolicitudDetalleModal extends StatefulWidget {
-  final SolicitudCompraListaItem solicitud;
+  //final SolicitudCompraListaItem solicitud;
+  final SolicitudCompraItemBase solicitud; 
   final bool mostrarAcciones;
+  final bool esConsulta;
   final VoidCallback? onAutorizar;
   final VoidCallback? onObservar;
 
@@ -29,6 +31,7 @@ class SolicitudDetalleModal extends StatefulWidget {
     super.key,
     required this.solicitud,
     this.mostrarAcciones = true,
+    this.esConsulta = false,
     this.onAutorizar,
     this.onObservar,
   });
@@ -86,12 +89,25 @@ class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
       final authService = context.read<AuthService>();
       final usuario = authService.usuario;
 
-      final result = await _service.obtenerDetalle(
-        solComCabId: widget.solicitud.solComCabId,
-        tipOpeCompId: widget.solicitud.tipOpeCompId,
-        usuario: usuario?.webUser ?? '',
-        empresaId: usuario?.empresaId ?? '02',
-      );
+      SolicitudCompraDetalleResponse result;
+      
+      if (widget.esConsulta) {
+        // Usar endpoint de consulta
+        result = await _service.obtenerDetalleConsulta(
+          solComCabId: widget.solicitud.solComCabId,
+          tipOpeCompId: widget.solicitud.tipOpeCompId,
+          usuario: usuario?.webUser ?? '',
+          empresaId: usuario?.empresaId ?? '02',
+        );
+      } else {
+        // Usar endpoint de autorización
+        result = await _service.obtenerDetalle(
+          solComCabId: widget.solicitud.solComCabId,
+          tipOpeCompId: widget.solicitud.tipOpeCompId,
+          usuario: usuario?.webUser ?? '',
+          empresaId: usuario?.empresaId ?? '02',
+        );
+      }
 
       if (mounted) {
         setState(() {
@@ -304,7 +320,7 @@ class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
         children: [
           _buildInfoRow('Solicitud', '#${widget.solicitud.numero}'),
           _buildInfoRow('Fecha', widget.solicitud.fechaFormateada),
-          _buildInfoRow('Área', widget.solicitud.area),
+          _buildInfoRow('Área', widget.solicitud.area.isNotEmpty ? widget.solicitud.area : (enc?.area ?? '—')),
           _buildInfoRow('Solicitante', widget.solicitud.usuario),
           if ((enc?.cc ?? '').isNotEmpty) _buildInfoRow('C. Costo', enc!.cc),
           if ((enc?.descripcionGds ?? '').isNotEmpty || (enc?.gds ?? '').isNotEmpty)

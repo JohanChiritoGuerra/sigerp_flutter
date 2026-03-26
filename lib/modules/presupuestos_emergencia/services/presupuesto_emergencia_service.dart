@@ -4,7 +4,7 @@ import '../../../core/services/api_service.dart';
 class PresupuestoEmergenciaService {
   final ApiService _apiService = ApiService();
 
-  /// Tab 1 → PorAutorizar / Tab 2 → Autorizados
+  /// Autorización: Tab 1 → PorAutorizar / Tab 2 → Autorizados
   Future<PresupuestoEmergenciaAutorizacionResponse> obtenerListasAutorizacion({
     required String usuario,
     required String empresaId,
@@ -42,7 +42,47 @@ class PresupuestoEmergenciaService {
     }
   }
 
-  /// Detalle para el diálogo
+  /// Consulta: Tab 1 → PorAtender / Tab 2 → Atendidos / Tab 3 → Anulados
+  Future<PresupuestoEmergenciaConsultaResponse> obtenerListasConsulta({
+    required String usuario,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        'api/presupuesto-emergencia-consulta/grillas/consulta',
+        queryParams: {
+          'usuario': usuario,
+          'empresaId': empresaId,
+        },
+      );
+
+      // Normaliza por si tu API devuelve data/envuelto
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'porAtender': data['porAtender'] ?? response['porAtender'] ?? [],
+        'atendidos': data['atendidos'] ?? response['atendidos'] ?? [],
+        'anulados': data['anulados'] ?? response['anulados'] ?? [],
+      };
+
+      return PresupuestoEmergenciaConsultaResponse.fromJson(normalized);
+    } catch (e) {
+      return PresupuestoEmergenciaConsultaResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        porAtender: const [],
+        atendidos: const [],
+        anulados: const [],
+      );
+    }
+  }
+
+  /// Detalle de Autorización
   Future<PresupuestoEmergenciaDetalleResponse> obtenerDetalle({
     required int id,
     required int idSubtipo,
@@ -52,6 +92,45 @@ class PresupuestoEmergenciaService {
     try {
       final response = await _apiService.get(
         'api/presupuesto-emergencia/$id/detalle',
+        queryParams: {
+          'idSubtipo': idSubtipo.toString(),
+          'usuario': usuario,
+          'empresaId': empresaId,
+        },
+      );
+
+      final data = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final normalized = <String, dynamic>{
+        'baseResponse': response['baseResponse'] ?? response,
+        'encabezado': data['encabezado'] ?? response['encabezado'],
+        'detalle': data['detalle'] ?? response['detalle'] ?? [],
+      };
+
+      return PresupuestoEmergenciaDetalleResponse.fromJson(normalized);
+    } catch (e) {
+      return PresupuestoEmergenciaDetalleResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error: $e',
+        ),
+        detalle: const [],
+      );
+    }
+  }
+
+  /// Detalle para consulta
+  Future<PresupuestoEmergenciaDetalleResponse> obtenerDetalleConsulta({
+    required int id,
+    required int idSubtipo,
+    required String usuario,
+    required String empresaId,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        'api/presupuesto-emergencia-consulta/$id/detalle',
         queryParams: {
           'idSubtipo': idSubtipo.toString(),
           'usuario': usuario,

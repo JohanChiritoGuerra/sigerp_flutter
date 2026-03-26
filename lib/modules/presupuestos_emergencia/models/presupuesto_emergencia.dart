@@ -50,7 +50,7 @@ enum TipoPresupuestoEmergencia {
   static TipoPresupuestoEmergencia fromString(String? value) {
     switch (value?.toUpperCase()) {
       case 'CARGAS DIVERSAS DE GESTION': return TipoPresupuestoEmergencia.cargasDiversas;
-      case 'SERVICIOS DE TERCERO':       return TipoPresupuestoEmergencia.servicioTercero;
+      case 'SERVICIO DE TERCEROS':       return TipoPresupuestoEmergencia.servicioTercero;
       case 'CONSUMOS':                   return TipoPresupuestoEmergencia.consumo;
       case 'INVERSIONES':                return TipoPresupuestoEmergencia.inversiones;
       default:                           return TipoPresupuestoEmergencia.consumo;
@@ -157,6 +157,10 @@ enum EstadoPresupuesto {
     }
   }
 
+  Color get backgroundColor {
+    return color.withOpacity(0.1);
+  }
+  
   IconData get icon {
     switch (this) {
       case EstadoPresupuesto.borrador:     return Icons.edit_outlined;

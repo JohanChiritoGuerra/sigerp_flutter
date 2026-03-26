@@ -5,6 +5,7 @@ import '../../core/utils/constants.dart';
 import 'models/presupuesto_emergencia.dart';
 import 'services/presupuesto_emergencia_service.dart';
 import 'widgets/presupuesto_emergencia_card.dart';
+import 'widgets/presupuesto_detalle_modal.dart';
 
 /// Pantalla de consulta de presupuestos de emergencia (solo lectura)
 /// Permite ver el historial de todos los presupuestos sin opciones de autorización
@@ -23,20 +24,25 @@ class _PresupuestoEmergenciaConsultaScreenState
   final PresupuestoEmergenciaService _service = PresupuestoEmergenciaService();
   final TextEditingController _searchController = TextEditingController();
 
-  List<PresupuestoEmergenciaListaItem> _todosPresupuestos = [];
-  List<PresupuestoEmergenciaListaItem> _presupuestosFiltrados = [];
+  // Datos desde el API
+  List<PresupuestoEmergenciaConsultaItem> _porAtender = [];
+  List<PresupuestoEmergenciaConsultaItem> _atendidos = [];
+  List<PresupuestoEmergenciaConsultaItem> _anulados = [];
+  
+  // Listas filtradas para mostrar
+  List<PresupuestoEmergenciaConsultaItem> _itemsFiltrados = [];
+  
   bool _isLoading = true;
   String? _error;
   
   // Filtros
-  final String _filtroEstado = 'TODOS';
   String _filtroPrioridad = 'TODOS';
   DateTimeRange? _rangoFechas;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // 3 tabs: Por Atender, Atendidos, Anulados
     _tabController.addListener(_onTabChanged);
     _cargarPresupuestos();
   }
@@ -73,115 +79,94 @@ class _PresupuestoEmergenciaConsultaScreenState
     }
 
     try {
-      // TODO: Implementar llamada real al API
-      // final presupuestos = await _service.obtenerTodosPresupuestos(
-      //   trabId: usuario.trabId ?? '',
-      //   empresaId: usuario.empresaId ?? '02',
-      // );
-
-      // Datos de prueba
-      await Future.delayed(const Duration(milliseconds: 500));
+      final result = await _service.obtenerListasConsulta(
+        usuario: usuario.webUser ?? '',
+        empresaId: usuario.empresaId ?? '02',
+      );
 
       setState(() {
-        _todosPresupuestos = []; // TODO: Cargar desde API
-        _aplicarFiltros();
+        if (result.esExitoso) {
+          _porAtender = result.porAtender;
+          _atendidos = result.atendidos;
+          _anulados = result.anulados;
+          _aplicarFiltros();
+        } else {
+          _error = result.baseResponse.message ?? 'Error al cargar los datos';
+        }
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Error al cargar presupuestos: $e';
+        _error = 'Error al cargar: $e';
       });
     }
   }
 
-  void _aplicarFiltros() {
-    List<PresupuestoEmergenciaListaItem> resultado = List.from(_todosPresupuestos);
-
-    // Filtrar por tab (estado)
+  /// Obtiene la lista actual según el tab seleccionado
+  List<PresupuestoEmergenciaConsultaItem> _getListaActual() {
     switch (_tabController.index) {
-      case 0: // Todos
-        break;
-      case 1: // Pendientes
-        resultado = resultado
-            .where((p) =>
-                p.estadoActual == EstadoPresupuesto.pendiente ||
-                p.estadoActual == EstadoPresupuesto.porAutorizar)
-            .toList();
-        break;
-      case 2: // Autorizados
-        resultado = resultado
-            .where((p) => p.estadoActual == EstadoPresupuesto.autorizado)
-            .toList();
-        break;
-      case 3: // Observados
-        resultado = resultado
-            .where((p) => p.estadoActual == EstadoPresupuesto.observado)
-            .toList();
-        break;
+      case 0: // Por Atender
+        return _porAtender;
+      case 1: // Atendidos
+        return _atendidos;
+      case 2: // Anulados
+        return _anulados;
+      default:
+        return [];
     }
+  }
 
-    // Filtrar por prioridad
-    if (_filtroPrioridad != 'TODOS') {
-      resultado = resultado.where((p) {
-        switch (_filtroPrioridad) {
-          case 'EMERGENCIA':
-            return p.prioridad == PrioridadPresupuesto.emergencia;
-          case 'URGENTE':
-            return p.prioridad == PrioridadPresupuesto.urgente;
-          case 'NORMAL':
-            return p.prioridad == PrioridadPresupuesto.normal;
-          default:
-            return true;
-        }
-      }).toList();
-    }
+  void _aplicarFiltros() {
+    List<PresupuestoEmergenciaConsultaItem> resultado = List.from(_getListaActual());
 
-    // Filtrar por búsqueda
+    // Filtrar por búsqueda (número, usuario, área)
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       resultado = resultado.where((p) {
-        return (p.codigo?.toLowerCase().contains(query) ?? false) ||
-            (p.descripcion?.toLowerCase().contains(query) ?? false) ||
-            (p.solicitante?.nombreCompleto.toLowerCase().contains(query) ?? false) ||
-            (p.solicitante?.seccion.toLowerCase().contains(query) ?? false);
+        return p.numero.toLowerCase().contains(query) ||
+            p.usuario.toLowerCase().contains(query) ||
+            p.area.toLowerCase().contains(query);
       }).toList();
     }
 
     // Filtrar por rango de fechas
     if (_rangoFechas != null) {
       resultado = resultado.where((p) {
-        if (p.fechaSolicitud == null) return false;
-        return p.fechaSolicitud!.isAfter(_rangoFechas!.start) &&
-            p.fechaSolicitud!
-                .isBefore(_rangoFechas!.end.add(const Duration(days: 1)));
+        return p.fecha.isAfter(_rangoFechas!.start) &&
+            p.fecha.isBefore(_rangoFechas!.end.add(const Duration(days: 1)));
       }).toList();
     }
 
     setState(() {
-      _presupuestosFiltrados = resultado;
+      _itemsFiltrados = resultado;
     });
   }
 
-  // TODO: Reemplazar con datos reales del API
-  // List<PresupuestoEmergenciaListaItem> _generarDatosPrueba() {
-  //   return [];
-  // }
+  void _mostrarDetallePresupuesto(PresupuestoEmergenciaConsultaItem presupuesto) {
+    // Convertir a PresupuestoEmergenciaListaItem para el modal
+    final listaItem = PresupuestoEmergenciaListaItem(
+      idPresupuestoEmergencia: presupuesto.idPresupuestoEmergencia,
+      idSubtipoPresupuesto: presupuesto.idSubtipoPresupuesto,
+      esCcMultiple: presupuesto.esCcMultiple,
+      tipo: presupuesto.tipo,
+      numero: presupuesto.numero,
+      fecha: presupuesto.fecha,
+      usuario: presupuesto.usuario,
+      area: presupuesto.area,
+      estadoActual: presupuesto.estadoPresupuesto,
+    );
 
-  void _mostrarDetallePresupuesto(PresupuestoEmergenciaListaItem presupuesto) {
-    // TODO: Implementar modal de detalles con datos reales del API
-    // showModalBottomSheet(
-    //   context: context,
-    //   isScrollControlled: true,
-    //   backgroundColor: Colors.transparent,
-    //   builder: (context) => PresupuestoDetalleModal(
-    //     presupuesto: presupuesto,
-    //     mostrarAcciones: false,
-    //     modoConsulta: true,
-    //     onAutorizar: null,
-    //     onObservar: null,
-    //   ),
-    // );
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PresupuestoDetalleModal(
+        presupuesto: listaItem,
+        mostrarAcciones: false,
+        modoConsulta: true,
+      ),
+    );
   }
 
   void _mostrarFiltros() {
@@ -226,54 +211,6 @@ class _PresupuestoEmergenciaConsultaScreenState
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Filtro por prioridad
-              const Text(
-                'Prioridad',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  _buildFilterChip(
-                    label: 'Todos',
-                    selected: _filtroPrioridad == 'TODOS',
-                    onSelected: (selected) {
-                      setModalState(() => _filtroPrioridad = 'TODOS');
-                    },
-                  ),
-                  _buildFilterChip(
-                    label: 'Emergencia',
-                    selected: _filtroPrioridad == 'EMERGENCIA',
-                    color: Colors.red,
-                    onSelected: (selected) {
-                      setModalState(() => _filtroPrioridad = 'EMERGENCIA');
-                    },
-                  ),
-                  _buildFilterChip(
-                    label: 'Urgente',
-                    selected: _filtroPrioridad == 'URGENTE',
-                    color: Colors.orange,
-                    onSelected: (selected) {
-                      setModalState(() => _filtroPrioridad = 'URGENTE');
-                    },
-                  ),
-                  _buildFilterChip(
-                    label: 'Normal',
-                    selected: _filtroPrioridad == 'NORMAL',
-                    color: Colors.green,
-                    onSelected: (selected) {
-                      setModalState(() => _filtroPrioridad = 'NORMAL');
-                    },
-                  ),
-                ],
               ),
               const SizedBox(height: 20),
 
@@ -342,7 +279,6 @@ class _PresupuestoEmergenciaConsultaScreenState
                     child: OutlinedButton(
                       onPressed: () {
                         setModalState(() {
-                          _filtroPrioridad = 'TODOS';
                           _rangoFechas = null;
                         });
                       },
@@ -382,25 +318,6 @@ class _PresupuestoEmergenciaConsultaScreenState
           ),
         );
       },
-    );
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool selected,
-    Color? color,
-    required Function(bool) onSelected,
-  }) {
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: onSelected,
-      selectedColor: (color ?? Color(AppColors.primaryColor)).withOpacity(0.2),
-      checkmarkColor: color ?? Color(AppColors.primaryColor),
-      labelStyle: TextStyle(
-        color: selected ? (color ?? Color(AppColors.primaryColor)) : Colors.grey[700],
-        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-      ),
     );
   }
 
@@ -446,7 +363,7 @@ class _PresupuestoEmergenciaConsultaScreenState
                     controller: _searchController,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Buscar por código, descripción...',
+                      hintText: 'Buscar por número, usuario...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
                       prefixIcon: Icon(
                         Icons.search,
@@ -487,56 +404,9 @@ class _PresupuestoEmergenciaConsultaScreenState
                 ),
                 labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                 tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Todos'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_todosPresupuestos.length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Pendientes'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_todosPresupuestos
-                            .where((p) =>
-                                p.estadoActual == EstadoPresupuesto.pendiente ||
-                                p.estadoActual == EstadoPresupuesto.porAutorizar)
-                            .length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Autorizados'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_todosPresupuestos
-                            .where((p) =>
-                                p.estadoActual == EstadoPresupuesto.autorizado)
-                            .length),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Observados'),
-                        const SizedBox(width: 4),
-                        _buildBadge(_todosPresupuestos
-                            .where((p) =>
-                                p.estadoActual == EstadoPresupuesto.observado)
-                            .length),
-                      ],
-                    ),
-                  ),
+                  _buildTab('POR ATENDER', _porAtender.length),
+                  _buildTab('ATENDIDOS', _atendidos.length),
+                  _buildTab('ANULADOS', _anulados.length),
                 ],
               ),
             ],
@@ -551,19 +421,30 @@ class _PresupuestoEmergenciaConsultaScreenState
     );
   }
 
-  Widget _buildBadge(int count) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        count.toString(),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+  Widget _buildTab(String label, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -591,51 +472,65 @@ class _PresupuestoEmergenciaConsultaScreenState
   }
 
   Widget _buildListView() {
-    if (_presupuestosFiltrados.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'No hay presupuestos',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
+  if (_itemsFiltrados.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            _getMensajeVacio(),
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'No se encontraron presupuestos con los filtros seleccionados',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No se encontraron presupuestos',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 14,
             ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _cargarPresupuestos,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _presupuestosFiltrados.length,
-        itemBuilder: (context, index) {
-          final presupuesto = _presupuestosFiltrados[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: PresupuestoEmergenciaCard(
-              presupuesto: presupuesto,
-              onTap: () => _mostrarDetallePresupuesto(presupuesto),
-              mostrarEstado: true,
-            ),
-          );
-        },
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
+  }
+
+  return RefreshIndicator(
+    onRefresh: _cargarPresupuestos,
+    child: ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _itemsFiltrados.length,
+      itemBuilder: (context, index) {
+        final presupuesto = _itemsFiltrados[index];
+        // Pasar directamente el item de consulta al card (sin convertir)
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: PresupuestoEmergenciaCard(
+            presupuesto: presupuesto, // ← Pasar PresupuestoEmergenciaConsultaItem
+            onTap: () => _mostrarDetallePresupuesto(presupuesto),
+            mostrarEstado: true,
+          ),
+        );
+      },
+    ),
+  );
+}
+
+  String _getMensajeVacio() {
+    switch (_tabController.index) {
+      case 0:
+        return 'No hay presupuestos por atender';
+      case 1:
+        return 'No hay presupuestos atendidos';
+      case 2:
+        return 'No hay presupuestos anulados';
+      default:
+        return 'No hay presupuestos';
+    }
   }
 }
