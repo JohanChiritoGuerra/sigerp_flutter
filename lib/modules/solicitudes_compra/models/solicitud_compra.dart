@@ -117,6 +117,16 @@ extension TipoSolicitudCompraExtension on TipoSolicitudCompra {
     
     return TipoSolicitudCompra.compraMateriales;
   }
+
+  static TipoSolicitudCompra fromTipOpeCompId(int? id) {
+    switch (id) {
+      case 1: return TipoSolicitudCompra.compraMateriales;
+      case 2: return TipoSolicitudCompra.compraActivoFijo;
+      case 3: return TipoSolicitudCompra.servicioTercero;
+      case 4: return TipoSolicitudCompra.cargaDiversaGestion;
+      default: return TipoSolicitudCompra.compraMateriales;
+    }
+  }
 }
 
 // ─── Estados de solicitud ────────────────────────────────────────────────────
@@ -125,6 +135,8 @@ enum EstadoSolicitud {
   autorizado,
   observado,
   enProceso,
+  anulado,
+  rechazado,
 }
 
 extension EstadoSolicitudExtension on EstadoSolicitud {
@@ -138,8 +150,24 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
         return EstadoSolicitud.observado;
       case 'EN PROCESO':
         return EstadoSolicitud.enProceso;
+      case 'ANULADO':
+        return EstadoSolicitud.anulado;
+      case 'RECHAZADO':
+        return EstadoSolicitud.rechazado;
       default:
         return EstadoSolicitud.pendiente;
+    }
+  }
+
+  static EstadoSolicitud fromEstadoAutorizacion(int? estado) {
+    switch (estado) {
+      case 0: return EstadoSolicitud.pendiente;
+      case 1: return EstadoSolicitud.pendiente; // Por autorizar
+      case 2: return EstadoSolicitud.enProceso; // En revisión
+      case 3: return EstadoSolicitud.autorizado;
+      case 4: return EstadoSolicitud.autorizado; // Atendido
+      case -1: return EstadoSolicitud.rechazado;
+      default: return EstadoSolicitud.pendiente;
     }
   }
 
@@ -147,12 +175,16 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
     switch (this) {
       case EstadoSolicitud.pendiente:
         return 'PENDIENTE';
+      case EstadoSolicitud.enProceso:
+        return 'EN PROCESO';
       case EstadoSolicitud.autorizado:
         return 'AUTORIZADO';
       case EstadoSolicitud.observado:
         return 'OBSERVADO';
-      case EstadoSolicitud.enProceso:
-        return 'EN PROCESO';
+      case EstadoSolicitud.anulado:
+        return 'ANULADO';
+      case EstadoSolicitud.rechazado:
+        return 'RECHAZADO';
     }
   }
 
@@ -166,6 +198,10 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
         return const Color(0xFF67C23A);
       case EstadoSolicitud.observado:
         return const Color(0xFFEF6B6B);
+      case EstadoSolicitud.anulado:
+        return const Color(0xFF909399);
+      case EstadoSolicitud.rechazado:
+        return const Color(0xFFF56C6C);
     }
   }
 
@@ -183,12 +219,16 @@ extension EstadoSolicitudExtension on EstadoSolicitud {
         return Icons.check_circle_outline_rounded;
       case EstadoSolicitud.observado:
         return Icons.info_outline_rounded;
+      case EstadoSolicitud.anulado:
+        return Icons.cancel_outlined;
+      case EstadoSolicitud.rechazado:
+        return Icons.close_rounded;
     }
   }
 }
 
-// ─── Item de lista para autorización ─────────────────────────────────────────
-class SolicitudCompraListaItem {
+// ─── Item base para listas (comparte campos comunes) ─────────────────────────
+class SolicitudCompraItemBase {
   final String solComCabId;
   final int tipOpeCompId;
   final String tipo;
@@ -197,7 +237,7 @@ class SolicitudCompraListaItem {
   final String usuario;
   final String area;
 
-  SolicitudCompraListaItem({
+  SolicitudCompraItemBase({
     required this.solComCabId,
     required this.tipOpeCompId,
     required this.tipo,
@@ -207,23 +247,171 @@ class SolicitudCompraListaItem {
     required this.area,
   });
 
-  factory SolicitudCompraListaItem.fromJson(Map<String, dynamic> json) =>
-      SolicitudCompraListaItem(
-        solComCabId: json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
-        tipOpeCompId: json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
-        tipo: json['tipo'] ?? json['Tipo'] ?? '',
-        numero: json['numero'] ?? json['Numero'] ?? '',
-        fecha: DateTime.tryParse(json['fecha'] ?? json['Fecha'] ?? '') ?? DateTime.now(),
-        usuario: json['usuario'] ?? json['Usuario'] ?? '',
-        area: json['area'] ?? json['Area'] ?? '',
-      );
+  // Constructor desde JSON (campos comunes)
+  SolicitudCompraItemBase.fromJson(Map<String, dynamic> json)
+      : solComCabId = json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
+        tipOpeCompId = json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
+        tipo = json['tipo'] ?? json['Tipo'] ?? '',
+        numero = json['numero'] ?? json['Numero'] ?? '',
+        fecha = DateTime.tryParse(json['fecha'] ?? json['Fecha'] ?? '') ?? DateTime.now(),
+        usuario = json['usuario'] ?? json['Usuario'] ?? '',
+        area = json['area'] ?? json['Area'] ?? '';
+
+  // Getter para tipoEnum (común)
+  TipoSolicitudCompra get tipoEnum => TipoSolicitudCompraExtension.fromString(tipo);
 
   String get fechaFormateada =>
       '${fecha.day.toString().padLeft(2, '0')}/'
       '${fecha.month.toString().padLeft(2, '0')}/'
       '${fecha.year}';
+}
 
-  TipoSolicitudCompra get tipoEnum => TipoSolicitudCompraExtension.fromString(tipo);
+// ─── Item para autorización (sin campos extra) ───────────────────────────────
+class SolicitudCompraListaItem extends SolicitudCompraItemBase {
+  SolicitudCompraListaItem({
+    required super.solComCabId,
+    required super.tipOpeCompId,
+    required super.tipo,
+    required super.numero,
+    required super.fecha,
+    required super.usuario,
+    required super.area,
+  });
+
+  factory SolicitudCompraListaItem.fromJson(Map<String, dynamic> json) {
+    return SolicitudCompraListaItem(
+      solComCabId: json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
+      tipOpeCompId: json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
+      tipo: json['tipo'] ?? json['Tipo'] ?? '',
+      numero: json['numero'] ?? json['Numero'] ?? '',
+      fecha: DateTime.tryParse(json['fecha'] ?? json['Fecha'] ?? '') ?? DateTime.now(),
+      usuario: json['usuario'] ?? json['Usuario'] ?? '',
+      area: json['area'] ?? json['Area'] ?? '',
+    );
+  }
+}
+
+// ─── Item para consulta (con campos adicionales específicos) ─────────────────
+class SolicitudCompraConsultaItem extends SolicitudCompraItemBase {
+  final int estadoAutorizacion;
+  final String? estado;           // Solo para PorAutorizar y AnuladosRechazados
+  final String? usuarioAtencion;  // Solo para Autorizados
+  final DateTime? fechaHoraAtencion; // Solo para Autorizados
+
+  SolicitudCompraConsultaItem({
+    required super.solComCabId,
+    required super.tipOpeCompId,
+    required super.tipo,
+    required super.numero,
+    required super.fecha,
+    required super.usuario,
+    required super.area,
+    required this.estadoAutorizacion,
+    this.estado,
+    this.usuarioAtencion,
+    this.fechaHoraAtencion,
+  });
+
+  factory SolicitudCompraConsultaItem.fromJson(Map<String, dynamic> json) {
+    return SolicitudCompraConsultaItem(
+      solComCabId: json['solComCabId']?.toString() ?? json['SolComCabId']?.toString() ?? '',
+      tipOpeCompId: json['tipOpeCompId'] ?? json['TipOpeCompId'] ?? 0,
+      tipo: json['tipo'] ?? json['Tipo'] ?? '',
+      numero: json['numero'] ?? json['Numero'] ?? '',
+      fecha: DateTime.tryParse(json['fecha'] ?? json['Fecha'] ?? '') ?? DateTime.now(),
+      usuario: json['usuario'] ?? json['Usuario'] ?? '',
+      area: json['area'] ?? json['Area'] ?? '',
+      estadoAutorizacion: json['estadoAutorizacion'] ?? 0,
+      estado: json['estado'] ?? json['Estado'],
+      usuarioAtencion: json['usuarioAtencion'] ?? json['UsuarioAtencion'],
+      fechaHoraAtencion: json['fechaHoraAtencion'] != null
+          ? DateTime.tryParse(json['fechaHoraAtencion'].toString())
+          : json['FechaHoraAtencion'] != null
+              ? DateTime.tryParse(json['FechaHoraAtencion'].toString())
+              : null,
+    );
+  }
+
+  // Getter para obtener el estado de la solicitud desde el int
+  EstadoSolicitud get estadoSolicitud =>
+      EstadoSolicitudExtension.fromEstadoAutorizacion(estadoAutorizacion);
+
+  String get fechaHoraAtencionFormateada {
+    if (fechaHoraAtencion == null) return '';
+    return '${fechaHoraAtencion!.day.toString().padLeft(2, '0')}/'
+        '${fechaHoraAtencion!.month.toString().padLeft(2, '0')}/'
+        '${fechaHoraAtencion!.year} '
+        '${fechaHoraAtencion!.hour.toString().padLeft(2, '0')}:'
+        '${fechaHoraAtencion!.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ─── Response de autorización ─────────────────────────────────────────────────
+class SolicitudCompraAutorizacionResponse {
+  final BaseResponse baseResponse;
+  final List<SolicitudCompraListaItem> porAutorizar;
+  final List<SolicitudCompraListaItem> autorizados;
+
+  SolicitudCompraAutorizacionResponse({
+    required this.baseResponse,
+    required this.porAutorizar,
+    required this.autorizados,
+  });
+
+  factory SolicitudCompraAutorizacionResponse.fromJson(Map<String, dynamic> json) {
+    final rawBase = json['baseResponse'] ?? json;
+    final porAutorizarList = json['porAutorizar'] ?? [];
+    final autorizadosList = json['autorizados'] ?? [];
+
+    return SolicitudCompraAutorizacionResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      porAutorizar: (porAutorizarList as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      autorizados: (autorizadosList as List<dynamic>)
+          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+}
+
+// ─── Response de consulta ─────────────────────────────────────────────────────
+class SolicitudCompraConsultaResponse {
+  final BaseResponse baseResponse;
+  final List<SolicitudCompraConsultaItem> porAutorizar;
+  final List<SolicitudCompraConsultaItem> autorizados;
+  final List<SolicitudCompraConsultaItem> anuladosRechazados;
+
+  SolicitudCompraConsultaResponse({
+    required this.baseResponse,
+    required this.porAutorizar,
+    required this.autorizados,
+    required this.anuladosRechazados,
+  });
+
+  factory SolicitudCompraConsultaResponse.fromJson(Map<String, dynamic> json) {
+    final rawBase = json['baseResponse'] ?? json;
+    final porAutorizarList = json['porAutorizar'] ?? [];
+    final autorizadosList = json['autorizados'] ?? [];
+    final anuladosList = json['anuladosRechazados'] ?? [];
+
+    return SolicitudCompraConsultaResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      porAutorizar: (porAutorizarList as List<dynamic>)
+          .map((e) => SolicitudCompraConsultaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      autorizados: (autorizadosList as List<dynamic>)
+          .map((e) => SolicitudCompraConsultaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      anuladosRechazados: (anuladosList as List<dynamic>)
+          .map((e) => SolicitudCompraConsultaItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
 }
 
 // ─── Encabezado de detalle ───────────────────────────────────────────────────
@@ -248,7 +436,7 @@ class SolicitudCompraEncabezado {
     required this.usoMotivo,
   });
 
-factory SolicitudCompraEncabezado.fromJson(Map<String, dynamic> json) =>
+  factory SolicitudCompraEncabezado.fromJson(Map<String, dynamic> json) =>
       SolicitudCompraEncabezado(
         numero: json['numero'] ?? json['Numero'] ?? '',
         fecha: json['fecha'] != null
@@ -256,8 +444,8 @@ factory SolicitudCompraEncabezado.fromJson(Map<String, dynamic> json) =>
             : json['Fecha'] != null
                 ? DateTime.tryParse(json['Fecha'].toString())
                 : null,
-        gds: json['gds'] ?? json['GDS'] ?? json['Gds'] ?? json['GDS'] ?? json['Gds'] ?? '',
-        descripcionGds: json['descripcionGds'] ?? json['DescripcionGDS'] ?? json['DescripcionGds'] ?? json['DESCRIPCIONGDS'] ?? json['descripcion_gds'] ?? json['Descripcion_GDS'] ?? json['descGds'] ?? json['DescGds'] ?? json['descripcionGDS'] ?? '',
+        gds: json['gds'] ?? json['GDS'] ?? json['Gds'] ?? '',
+        descripcionGds: json['descripcionGds'] ?? json['DescripcionGDS'] ?? json['DescripcionGds'] ?? '',
         area: json['area'] ?? json['Area'] ?? '',
         cc: json['cc'] ?? json['CC'] ?? '',
         observacion: json['observacion'] ?? json['Observacion'] ?? '',
@@ -335,6 +523,46 @@ class SolicitudCompraDetalleItem {
   String get subtotalFormateado {
     final val = subtotal ?? 0.0;
     return _formatNumber(val, monedaSimbolo);
+  }
+}
+
+// ─── Response de detalle ────────────────────────────────────────────────────
+class SolicitudCompraDetalleResponse {
+  final BaseResponse baseResponse;
+  final SolicitudCompraEncabezado? encabezado;
+  final List<SolicitudCompraDetalleItem> detalle;
+
+  SolicitudCompraDetalleResponse({
+    required this.baseResponse,
+    this.encabezado,
+    this.detalle = const [],
+  });
+
+  factory SolicitudCompraDetalleResponse.fromJson(Map<String, dynamic> json) {
+    final rawBase = json['baseResponse'] ?? json;
+    final rawEnc = json['Encabezado'] ?? json['encabezado'];
+    final rawDet = json['detalle'] ?? json['Detalle'] ?? [];
+
+    return SolicitudCompraDetalleResponse(
+      baseResponse: BaseResponse.fromJson(rawBase),
+      encabezado: rawEnc != null
+          ? SolicitudCompraEncabezado.fromJson(rawEnc as Map<String, dynamic>)
+          : null,
+      detalle: (rawDet as List<dynamic>)
+          .map((e) => SolicitudCompraDetalleItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  bool get esExitoso => baseResponse.success;
+
+  double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
+
+  String get totalFormateado {
+    final valor = total;
+    final simbolo = detalle.isNotEmpty ? detalle.first.monedaAbrev : 'S/';
+    final formatter = NumberFormat('#,##0.00', 'en_US');
+    return '$simbolo ${formatter.format(valor)}';
   }
 }
 
@@ -481,78 +709,7 @@ class SolicitudCompra {
   }
 }
 
-// ─── Respuesta de lista de autorización ──────────────────────────────────────
-class SolicitudCompraAutorizacionResponse {
-  final BaseResponse baseResponse;
-  final List<SolicitudCompraListaItem> porAutorizar;
-  final List<SolicitudCompraListaItem> autorizados;
-
-  SolicitudCompraAutorizacionResponse({
-    required this.baseResponse,
-    required this.porAutorizar,
-    required this.autorizados,
-  });
-
-  factory SolicitudCompraAutorizacionResponse.fromJson(Map<String, dynamic> json) {
-    final rawBase = json['baseResponse'] ?? json;
-    final porAutorizarList = json['porAutorizar'] ?? [];
-    final autorizadosList = json['autorizados'] ?? [];
-
-    return SolicitudCompraAutorizacionResponse(
-      baseResponse: BaseResponse.fromJson(rawBase),
-      porAutorizar: (porAutorizarList as List<dynamic>)
-          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      autorizados: (autorizadosList as List<dynamic>)
-          .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  bool get esExitoso => baseResponse.success;
-}
-
-// ─── Respuesta de detalle ────────────────────────────────────────────────────
-class SolicitudCompraDetalleResponse {
-  final BaseResponse baseResponse;
-  final SolicitudCompraEncabezado? encabezado;
-  final List<SolicitudCompraDetalleItem> detalle;
-
-  SolicitudCompraDetalleResponse({
-    required this.baseResponse,
-    this.encabezado,
-    this.detalle = const [],
-  });
-
-  factory SolicitudCompraDetalleResponse.fromJson(Map<String, dynamic> json) {
-    final rawBase = json['baseResponse'] ?? json;
-    final rawEnc = json['Encabezado'] ?? json['encabezado'];
-    final rawDet = json['detalle'] ?? json['Detalle'] ?? [];
-
-    return SolicitudCompraDetalleResponse(
-      baseResponse: BaseResponse.fromJson(rawBase),
-      encabezado: rawEnc != null
-          ? SolicitudCompraEncabezado.fromJson(rawEnc as Map<String, dynamic>)
-          : null,
-      detalle: (rawDet as List<dynamic>)
-          .map((e) => SolicitudCompraDetalleItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  bool get esExitoso => baseResponse.success;
-
-  double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
-
-  String get totalFormateado {
-    final valor = total;
-    final simbolo = detalle.isNotEmpty ? detalle.first.monedaAbrev : 'S/';
-    final formatter = NumberFormat('#,##0.00', 'en_US');
-    return '$simbolo ${formatter.format(valor)}';
-  }
-}
-
-// ─── Respuesta de acciones (autorizar/observar) ──────────────────────────────
+// ─── Response de acciones (autorizar/observar) ──────────────────────────────
 class SolicitudCompraActionResponse {
   final bool success;
   final String? message;
@@ -586,7 +743,7 @@ class SolicitudCompraActionResponse {
   bool get esExitoso => success;
 }
 
-// ─── Respuesta de lista de solicitudes ──────────────────────────────
+// ─── Response de lista de solicitudes ────────────────────────────────────────
 class SolicitudListResponse extends BaseResponse {
   final List<SolicitudCompraListaItem> solicitudes;
   final int totalRegistros;
@@ -601,7 +758,6 @@ class SolicitudListResponse extends BaseResponse {
     message: message,
   );
 
-  // Constructor alternativo que acepta baseResponse
   SolicitudListResponse.fromBaseResponse({
     required BaseResponse baseResponse,
     required this.solicitudes,
@@ -616,18 +772,14 @@ class SolicitudListResponse extends BaseResponse {
        );
 
   factory SolicitudListResponse.fromJson(Map<String, dynamic> json) {
-    // Intenta extraer solicitudes del nivel superior o de data
     List<SolicitudCompraListaItem> items = [];
     
-    // Si solicitudes está directamente en json
     if (json['solicitudes'] is List<dynamic>) {
       items = (json['solicitudes'] as List<dynamic>)
           .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))
           .toList();
-    }
-    // Si solicitudes viene en data
-    else if (json['data'] is Map<String, dynamic> && 
-             (json['data'] as Map<String, dynamic>)['solicitudes'] is List<dynamic>) {
+    } else if (json['data'] is Map<String, dynamic> && 
+               (json['data'] as Map<String, dynamic>)['solicitudes'] is List<dynamic>) {
       final dataMap = json['data'] as Map<String, dynamic>;
       items = (dataMap['solicitudes'] as List<dynamic>)
           .map((e) => SolicitudCompraListaItem.fromJson(e as Map<String, dynamic>))

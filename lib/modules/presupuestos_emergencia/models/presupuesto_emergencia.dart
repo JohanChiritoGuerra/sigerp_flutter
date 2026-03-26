@@ -51,8 +51,6 @@ enum TipoPresupuestoEmergencia {
     switch (value?.toUpperCase()) {
       case 'CARGAS DIVERSAS DE GESTION': return TipoPresupuestoEmergencia.cargasDiversas;
       case 'SERVICIOS DE TERCERO':       return TipoPresupuestoEmergencia.servicioTercero;
-      case 'SERVICIO DE TERCEROS':       return TipoPresupuestoEmergencia.servicioTercero;
-      case 'SERVICIO DE TERCERO':        return TipoPresupuestoEmergencia.servicioTercero;
       case 'CONSUMOS':                   return TipoPresupuestoEmergencia.consumo;
       case 'INVERSIONES':                return TipoPresupuestoEmergencia.inversiones;
       default:                           return TipoPresupuestoEmergencia.consumo;
@@ -214,34 +212,18 @@ enum PrioridadPresupuesto {
   }
 }
 
-// ─── Lista item (PorAutorizar y Autorizados) ──────────────────────────────────
-class PresupuestoEmergenciaListaItem {
-  final int    idPresupuestoEmergencia;
-  final int    idSubtipoPresupuesto;
-  final bool   esCcMultiple;
+// ─── Item base para listas (comparte campos comunes) ─────────────────────────
+class PresupuestoEmergenciaItemBase {
+  final int idPresupuestoEmergencia;
+  final int idSubtipoPresupuesto;
+  final bool esCcMultiple;
   final String tipo;
   final String numero;
   final DateTime fecha;
   final String usuario;
   final String area;
-  
-  // Campos adicionales para filtrado
-  final String? codigo;
-  final String? descripcion;
-  final EstadoPresupuesto? estadoActual;
-  final PrioridadPresupuesto? prioridad;
-  final DateTime? fechaSolicitud;
-  final String? nombreSolicitante;
-  final String? seccionSolicitante;
 
-  // Clase anidada para solicitante
-  late final Solicitante? solicitante;
-
-  // Derivados para la UI (no vienen del API, se calculan)
-  TipoPresupuestoEmergencia get tipoEnum =>
-      TipoPresupuestoEmergencia.fromString(tipo);
-
-  PresupuestoEmergenciaListaItem({
+  PresupuestoEmergenciaItemBase({
     required this.idPresupuestoEmergencia,
     required this.idSubtipoPresupuesto,
     required this.esCcMultiple,
@@ -250,49 +232,22 @@ class PresupuestoEmergenciaListaItem {
     required this.fecha,
     required this.usuario,
     required this.area,
-    this.codigo,
-    this.descripcion,
-    this.estadoActual,
-    this.prioridad,
-    this.fechaSolicitud,
-    this.nombreSolicitante,
-    this.seccionSolicitante,
-  }) {
-    // Inicializar solicitante si hay nombres disponibles
-    solicitante = (nombreSolicitante != null || seccionSolicitante != null)
-        ? Solicitante(
-            trabId: '',
-            nombreCompleto: nombreSolicitante ?? '',
-            seccion: seccionSolicitante ?? '',
-            cargo: '',
-          )
-        : null;
-  }
+  });
 
-  factory PresupuestoEmergenciaListaItem.fromJson(Map<String, dynamic> json) =>
-      PresupuestoEmergenciaListaItem(
-        idPresupuestoEmergencia: json['idPresupuestoEmergencia'] ?? 0,
-        idSubtipoPresupuesto:    json['idSubtipoPresupuesto']    ?? 0,
-        esCcMultiple:            json['esCcMultiple']            ?? false,
-        tipo:                    json['tipo']                    ?? '',
-        numero:                  json['numero']                  ?? '',
-        fecha:    DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
-        usuario:                 json['usuario']                 ?? '',
-        area:                    json['area']                    ?? '',
-        codigo:                  json['codigo'],
-        descripcion:             json['descripcion'],
-        estadoActual: json['estadoActual'] != null
-            ? EstadoPresupuesto.fromEstadoAutorizacion(json['estadoActual'])
-            : null,
-        prioridad: json['prioridad'] != null
-            ? PrioridadPresupuesto.fromString(json['prioridad'])
-            : null,
-        fechaSolicitud: json['fechaSolicitud'] != null
-            ? DateTime.tryParse(json['fechaSolicitud'])
-            : null,
-        nombreSolicitante:    json['nombreSolicitante'],
-        seccionSolicitante:   json['seccionSolicitante'],
-      );
+  // Constructor desde JSON (campos comunes)
+  PresupuestoEmergenciaItemBase.fromJson(Map<String, dynamic> json)
+      : idPresupuestoEmergencia = json['idPresupuestoEmergencia'] ?? 0,
+        idSubtipoPresupuesto = json['idSubtipoPresupuesto'] ?? 0,
+        esCcMultiple = json['esCcMultiple'] ?? false,
+        tipo = json['tipo'] ?? '',
+        numero = json['numero'] ?? '',
+        fecha = DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+        usuario = json['usuario'] ?? '',
+        area = json['area'] ?? '';
+
+  // Getter para tipoEnum (común)
+  TipoPresupuestoEmergencia get tipoEnum =>
+      TipoPresupuestoEmergencia.fromString(tipo);
 
   String get fechaFormateada =>
       '${fecha.day.toString().padLeft(2, '0')}/'
@@ -300,138 +255,126 @@ class PresupuestoEmergenciaListaItem {
       '${fecha.year}';
 }
 
-// ─── Clases auxiliares para PresupuestoEmergencia ────────────────────────────
-class PresupuestoEmergenciaEncabezado {
-  final String    numero;
-  final DateTime? fecha;
-  final String    gds;
-  final String    descripcionGds;
-  final String    area;
-  final String    cc;
-  final String    observacion;
-  final String    usoMotivo;
+// ─── Item para autorización (sin campos extra) ───────────────────────────────
+class PresupuestoEmergenciaListaItem extends PresupuestoEmergenciaItemBase {
+  // Campos adicionales para filtrado (opcionales, no vienen del API de autorización)
+  final String? codigo;
+  final String? descripcion;
+  final EstadoPresupuesto? estadoActual;
+  final PrioridadPresupuesto? prioridad;
+  final DateTime? fechaSolicitud;
+  final String? nombreSolicitante;
+  final String? seccionSolicitante;
+  final Solicitante? solicitante;
 
-  PresupuestoEmergenciaEncabezado({
-    required this.numero,
-    this.fecha,
-    required this.gds,
-    required this.descripcionGds,
-    required this.area,
-    required this.cc,
-    required this.observacion,
-    required this.usoMotivo,
+  PresupuestoEmergenciaListaItem({
+    required super.idPresupuestoEmergencia,
+    required super.idSubtipoPresupuesto,
+    required super.esCcMultiple,
+    required super.tipo,
+    required super.numero,
+    required super.fecha,
+    required super.usuario,
+    required super.area,
+    this.codigo,
+    this.descripcion,
+    this.estadoActual,
+    this.prioridad,
+    this.fechaSolicitud,
+    this.nombreSolicitante,
+    this.seccionSolicitante,
+  }) : solicitante = (nombreSolicitante != null || seccionSolicitante != null)
+          ? Solicitante(
+              trabId: '',
+              nombreCompleto: nombreSolicitante ?? '',
+              seccion: seccionSolicitante ?? '',
+              cargo: '',
+            )
+          : null;
+
+  factory PresupuestoEmergenciaListaItem.fromJson(Map<String, dynamic> json) {
+    return PresupuestoEmergenciaListaItem(
+      idPresupuestoEmergencia: json['idPresupuestoEmergencia'] ?? 0,
+      idSubtipoPresupuesto: json['idSubtipoPresupuesto'] ?? 0,
+      esCcMultiple: json['esCcMultiple'] ?? false,
+      tipo: json['tipo'] ?? '',
+      numero: json['numero'] ?? '',
+      fecha: DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+      usuario: json['usuario'] ?? '',
+      area: json['area'] ?? '',
+      codigo: json['codigo'],
+      descripcion: json['descripcion'],
+      estadoActual: json['estadoActual'] != null
+          ? EstadoPresupuesto.fromEstadoAutorizacion(json['estadoActual'])
+          : null,
+      prioridad: json['prioridad'] != null
+          ? PrioridadPresupuesto.fromString(json['prioridad'])
+          : null,
+      fechaSolicitud: json['fechaSolicitud'] != null
+          ? DateTime.tryParse(json['fechaSolicitud'])
+          : null,
+      nombreSolicitante: json['nombreSolicitante'],
+      seccionSolicitante: json['seccionSolicitante'],
+    );
+  }
+}
+
+// ─── Item para consulta (con campos adicionales específicos) ─────────────────
+class PresupuestoEmergenciaConsultaItem extends PresupuestoEmergenciaItemBase {
+  final int estadoAutorizacion;
+  final String? estado;           // Solo para PorAtender y Anulados
+  final String? usuarioAtencion;  // Solo para Atendidos
+  final DateTime? fechaHoraAtencion; // Solo para Atendidos
+
+  PresupuestoEmergenciaConsultaItem({
+    required super.idPresupuestoEmergencia,
+    required super.idSubtipoPresupuesto,
+    required super.esCcMultiple,
+    required super.tipo,
+    required super.numero,
+    required super.fecha,
+    required super.usuario,
+    required super.area,
+    required this.estadoAutorizacion,
+    this.estado,
+    this.usuarioAtencion,
+    this.fechaHoraAtencion,
   });
 
-  factory PresupuestoEmergenciaEncabezado.fromJson(
-    Map<String, dynamic> json) =>
-  PresupuestoEmergenciaEncabezado(
-    numero:         json['Numero']         ?? json['numero']         ?? '',
-    fecha: json['Fecha'] != null 
-        ? DateTime.tryParse(json['Fecha'].toString()) 
-        : json['fecha'] != null 
-            ? DateTime.tryParse(json['fecha'].toString()) 
-            : null,
-    gds:            json['Gds']            ?? json['gds']            
-                 ?? json['GDS']            ?? '',
-    descripcionGds: json['DescripcionGds'] ?? json['descripcionGds'] 
-                 ?? json['DescripcionGDS'] ?? '',
-    area:           json['Area']           ?? json['area']           ?? '',
-    cc:             json['Cc']             ?? json['cc']             
-                 ?? json['CC']             ?? '',
-    observacion:    json['Observacion']    ?? json['observacion']    ?? '',
-    usoMotivo:      json['UsoMotivo']      ?? json['usoMotivo']      ?? '',
-  );
+  factory PresupuestoEmergenciaConsultaItem.fromJson(Map<String, dynamic> json) {
+    return PresupuestoEmergenciaConsultaItem(
+      idPresupuestoEmergencia: json['idPresupuestoEmergencia'] ?? 0,
+      idSubtipoPresupuesto: json['idSubtipoPresupuesto'] ?? 0,
+      esCcMultiple: json['esCcMultiple'] ?? false,
+      tipo: json['tipo'] ?? '',
+      numero: json['numero'] ?? '',
+      fecha: DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+      usuario: json['usuario'] ?? '',
+      area: json['area'] ?? '',
+      estadoAutorizacion: json['estadoAutorizacion'] ?? 0,
+      estado: json['estado'],
+      usuarioAtencion: json['usuarioAtencion'],
+      fechaHoraAtencion: json['fechaHoraAtencion'] != null
+          ? DateTime.tryParse(json['fechaHoraAtencion'])
+          : null,
+    );
+  }
 
-  String get fechaFormateada {
-    if (fecha == null) return '';
-    return '${fecha!.day.toString().padLeft(2, '0')}/'
-           '${fecha!.month.toString().padLeft(2, '0')}/'
-           '${fecha!.year}';
+  // Getter para obtener el estado del presupuesto desde el int
+  EstadoPresupuesto get estadoPresupuesto =>
+      EstadoPresupuesto.fromEstadoAutorizacion(estadoAutorizacion);
+
+  String get fechaHoraAtencionFormateada {
+    if (fechaHoraAtencion == null) return '';
+    return '${fechaHoraAtencion!.day.toString().padLeft(2, '0')}/'
+        '${fechaHoraAtencion!.month.toString().padLeft(2, '0')}/'
+        '${fechaHoraAtencion!.year} '
+        '${fechaHoraAtencion!.hour.toString().padLeft(2, '0')}:'
+        '${fechaHoraAtencion!.minute.toString().padLeft(2, '0')}';
   }
 }
 
-// ─── Item de detalle ──────────────────────────────────────────────────────────
-class PresupuestoEmergenciaDetalleItem {
-  final String  cc;
-  final String  ccDes;
-  final String  item;
-  final String  itemDes;
-  final double  cantidad;
-  final String  und;
-  final String? monedaId;
-  final String? monedaAbrev;
-  final double? montoReferencial;
-  final double? subtotal;
-
-  PresupuestoEmergenciaDetalleItem({
-    required this.cc,
-    required this.ccDes,
-    required this.item,
-    required this.itemDes,
-    required this.cantidad,
-    required this.und,
-    this.monedaId,
-    this.monedaAbrev,
-    this.montoReferencial,
-    this.subtotal,
-  });
-
-  factory PresupuestoEmergenciaDetalleItem.fromJson(
-    Map<String, dynamic> json) =>
-  PresupuestoEmergenciaDetalleItem(
-    cc:               json['Cc']               ?? json['cc']   
-                   ?? json['CC']               ?? '',
-    ccDes:            json['CcDes']            ?? json['ccDes'] 
-                   ?? json['CCDes']            ?? '',
-    item:             json['Item']             ?? json['item']            ?? '',
-    itemDes:          json['ItemDes']          ?? json['itemDes']         ?? '',
-    cantidad:        (json['Cantidad']         ?? json['cantidad'] as num?)
-                         ?.toDouble() ?? 0,
-    und:              json['Und']              ?? json['und']             ?? '',
-    monedaId:         json['MonedaId']         ?? json['monedaId'],
-    monedaAbrev:      json['MonedaAbrev']      ?? json['monedaAbrev']     ?? 'S/.', // ← NUEVO
-    montoReferencial:(json['MontoReferencial'] ?? json['montoReferencial'] as num?)
-                         ?.toDouble(),
-    subtotal:        (json['Subtotal']         ?? json['subtotal'] as num?)
-                         ?.toDouble(),
-  );
-
-  String get monedaSimbolo {
-    if (monedaAbrev == null || monedaAbrev!.isEmpty) return '';
-    // Si es 'S/.' ya viene con el punto, si es '$' queda como está
-    return monedaAbrev!;
-  }
-
-  String get subtotalFormateado {
-    final val = subtotal ?? 0.0;
-    return _formatNumber(val, monedaSimbolo);
-  }
-
-  String get montoReferencialFormateado {
-    final val = montoReferencial ?? 0.0;
-    return _formatNumber(val, monedaSimbolo);
-  }
-
-  // Método de formato con símbolo de moneda
-String _formatNumber(double value, String simbolo) {
-  if (simbolo.isEmpty) {
-    // Si no hay símbolo, solo formatear número
-    final formatter = NumberFormat('#,###.##', 'es_PE');
-    return formatter.format(value);
-  }
-  
-  // Usar NumberFormat con el símbolo correcto
-  // Usar locale 'en_US' para que el símbolo quede a la izquierda
-  final formatter = NumberFormat.currency(
-    locale: 'en_US',  // ← Cambiar a en_US para que el símbolo quede a la izquierda
-    symbol: simbolo,
-    decimalDigits: 2,
-  );
-  return formatter.format(value);
-}
-}
-
-// ─── Response grillas autorización ───────────────────────────────────────────
+// ─── Response de autorización ─────────────────────────────────────────────────
 class PresupuestoEmergenciaAutorizacionResponse {
   final BaseResponse baseResponse;
   final List<PresupuestoEmergenciaListaItem> porAutorizar;
@@ -458,6 +401,38 @@ class PresupuestoEmergenciaAutorizacionResponse {
   bool get esExitoso => baseResponse.success;
 }
 
+// ─── Response de consulta ─────────────────────────────────────────────────────
+class PresupuestoEmergenciaConsultaResponse {
+  final BaseResponse baseResponse;
+  final List<PresupuestoEmergenciaConsultaItem> porAtender;
+  final List<PresupuestoEmergenciaConsultaItem> atendidos;
+  final List<PresupuestoEmergenciaConsultaItem> anulados;
+
+  PresupuestoEmergenciaConsultaResponse({
+    required this.baseResponse,
+    required this.porAtender,
+    required this.atendidos,
+    required this.anulados,
+  });
+
+  factory PresupuestoEmergenciaConsultaResponse.fromJson(
+          Map<String, dynamic> json) =>
+      PresupuestoEmergenciaConsultaResponse(
+        baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? {}),
+        porAtender: (json['porAtender'] as List<dynamic>? ?? [])
+            .map((e) => PresupuestoEmergenciaConsultaItem.fromJson(e))
+            .toList(),
+        atendidos: (json['atendidos'] as List<dynamic>? ?? [])
+            .map((e) => PresupuestoEmergenciaConsultaItem.fromJson(e))
+            .toList(),
+        anulados: (json['anulados'] as List<dynamic>? ?? [])
+            .map((e) => PresupuestoEmergenciaConsultaItem.fromJson(e))
+            .toList(),
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
 // ─── Response detalle ─────────────────────────────────────────────────────────
 class PresupuestoEmergenciaDetalleResponse {
   final BaseResponse baseResponse;
@@ -472,7 +447,7 @@ class PresupuestoEmergenciaDetalleResponse {
 
   factory PresupuestoEmergenciaDetalleResponse.fromJson(
     Map<String, dynamic> json) {
-  // Soporta PascalCase (C# default) y camelCase
+    // Soporta PascalCase (C# default) y camelCase
     final rawEnc = json['Encabezado'] ?? json['encabezado'];
     final rawDet = json['Detalle'] ?? json['detalle'] ?? [];
     final rawBase = json['BaseResponse'] ?? json['baseResponse'] 
@@ -523,7 +498,133 @@ class PresupuestoEmergenciaDetalleResponse {
   }
 }
 
-// ─── Clases auxiliares para PresupuestoEmergencia ────────────────────────────
+// ─── Encabezado de detalle ────────────────────────────────────────────────────
+class PresupuestoEmergenciaEncabezado {
+  final String numero;
+  final DateTime? fecha;
+  final String gds;
+  final String descripcionGds;
+  final String area;
+  final String cc;
+  final String observacion;
+  final String usoMotivo;
+
+  PresupuestoEmergenciaEncabezado({
+    required this.numero,
+    this.fecha,
+    required this.gds,
+    required this.descripcionGds,
+    required this.area,
+    required this.cc,
+    required this.observacion,
+    required this.usoMotivo,
+  });
+
+  factory PresupuestoEmergenciaEncabezado.fromJson(
+    Map<String, dynamic> json) =>
+  PresupuestoEmergenciaEncabezado(
+    numero:         json['Numero']         ?? json['numero']         ?? '',
+    fecha: json['Fecha'] != null 
+        ? DateTime.tryParse(json['Fecha'].toString()) 
+        : json['fecha'] != null 
+            ? DateTime.tryParse(json['fecha'].toString()) 
+            : null,
+    gds:            json['Gds']            ?? json['gds']            
+                 ?? json['GDS']            ?? '',
+    descripcionGds: json['DescripcionGds'] ?? json['descripcionGds'] 
+                 ?? json['DescripcionGDS'] ?? '',
+    area:           json['Area']           ?? json['area']           ?? '',
+    cc:             json['Cc']             ?? json['cc']             
+                 ?? json['CC']             ?? '',
+    observacion:    json['Observacion']    ?? json['observacion']    ?? '',
+    usoMotivo:      json['UsoMotivo']      ?? json['usoMotivo']      ?? '',
+  );
+
+  String get fechaFormateada {
+    if (fecha == null) return '';
+    return '${fecha!.day.toString().padLeft(2, '0')}/'
+           '${fecha!.month.toString().padLeft(2, '0')}/'
+           '${fecha!.year}';
+  }
+}
+
+// ─── Item de detalle ──────────────────────────────────────────────────────────
+class PresupuestoEmergenciaDetalleItem {
+  final String cc;
+  final String ccDes;
+  final String item;
+  final String itemDes;
+  final double cantidad;
+  final String und;
+  final String? monedaId;
+  final String? monedaAbrev;
+  final double? montoReferencial;
+  final double? subtotal;
+
+  PresupuestoEmergenciaDetalleItem({
+    required this.cc,
+    required this.ccDes,
+    required this.item,
+    required this.itemDes,
+    required this.cantidad,
+    required this.und,
+    this.monedaId,
+    this.monedaAbrev,
+    this.montoReferencial,
+    this.subtotal,
+  });
+
+  factory PresupuestoEmergenciaDetalleItem.fromJson(
+    Map<String, dynamic> json) =>
+  PresupuestoEmergenciaDetalleItem(
+    cc:               json['Cc']               ?? json['cc']   
+                   ?? json['CC']               ?? '',
+    ccDes:            json['CcDes']            ?? json['ccDes'] 
+                   ?? json['CCDes']            ?? '',
+    item:             json['Item']             ?? json['item']            ?? '',
+    itemDes:          json['ItemDes']          ?? json['itemDes']         ?? '',
+    cantidad:        (json['Cantidad']         ?? json['cantidad'] as num?)
+                         ?.toDouble() ?? 0,
+    und:              json['Und']              ?? json['und']             ?? '',
+    monedaId:         json['MonedaId']         ?? json['monedaId'],
+    monedaAbrev:      json['MonedaAbrev']      ?? json['monedaAbrev']     ?? 'S/.',
+    montoReferencial:(json['MontoReferencial'] ?? json['montoReferencial'] as num?)
+                         ?.toDouble(),
+    subtotal:        (json['Subtotal']         ?? json['subtotal'] as num?)
+                         ?.toDouble(),
+  );
+
+  String get monedaSimbolo {
+    if (monedaAbrev == null || monedaAbrev!.isEmpty) return '';
+    return monedaAbrev!;
+  }
+
+  String get subtotalFormateado {
+    final val = subtotal ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+
+  String get montoReferencialFormateado {
+    final val = montoReferencial ?? 0.0;
+    return _formatNumber(val, monedaSimbolo);
+  }
+
+  String _formatNumber(double value, String simbolo) {
+    if (simbolo.isEmpty) {
+      final formatter = NumberFormat('#,###.##', 'es_PE');
+      return formatter.format(value);
+    }
+    
+    final formatter = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: simbolo,
+      decimalDigits: 2,
+    );
+    return formatter.format(value);
+  }
+}
+
+// ─── Clases auxiliares ────────────────────────────────────────────────────────
 
 /// Solicitante/Usuario
 class Solicitante {
@@ -700,7 +801,6 @@ class PresupuestoListResponse extends BaseResponse {
     message: message,
   );
 
-  // Constructor alternativo que acepta baseResponse
   PresupuestoListResponse.fromBaseResponse({
     required BaseResponse baseResponse,
     required this.presupuestos,
@@ -715,18 +815,14 @@ class PresupuestoListResponse extends BaseResponse {
        );
 
   factory PresupuestoListResponse.fromJson(Map<String, dynamic> json) {
-    // Intenta extraer presupuestos del nivel superior o de data
     List<PresupuestoEmergenciaListaItem> items = [];
     
-    // Si presupuestos está directamente en json
     if (json['presupuestos'] is List<dynamic>) {
       items = (json['presupuestos'] as List<dynamic>)
           .map((e) => PresupuestoEmergenciaListaItem.fromJson(e as Map<String, dynamic>))
           .toList();
-    }
-    // Si presupuestos viene en data
-    else if (json['data'] is Map<String, dynamic> && 
-             (json['data'] as Map<String, dynamic>)['presupuestos'] is List<dynamic>) {
+    } else if (json['data'] is Map<String, dynamic> && 
+               (json['data'] as Map<String, dynamic>)['presupuestos'] is List<dynamic>) {
       final dataMap = json['data'] as Map<String, dynamic>;
       items = (dataMap['presupuestos'] as List<dynamic>)
           .map((e) => PresupuestoEmergenciaListaItem.fromJson(e as Map<String, dynamic>))
