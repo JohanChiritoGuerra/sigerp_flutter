@@ -1,5 +1,6 @@
 import '../models/presupuesto_emergencia.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/utils/device_info_helper.dart';
 
 class PresupuestoEmergenciaService {
   final ApiService _apiService = ApiService();
@@ -293,6 +294,70 @@ class PresupuestoEmergenciaService {
       return PresupuestoActionResponse.fromJson(response);
     } catch (e) {
       return PresupuestoActionResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al observar: $e',
+        ),
+      );
+    }
+  }
+
+  /// Autoriza un presupuesto de emergencia (nuevo endpoint RESTful)
+  /// POST api/presupuesto-emergencia/autorizar
+  Future<AutorizarPresupuestoResponse> autorizar({
+    required int idPresupuestoEmergencia,
+    required String usuario,
+    required String empresaId,
+    String observacion = '',
+  }) async {
+    try {
+      final nombrePc = await DeviceInfoHelper.getNombreDispositivo();
+
+      final response = await _apiService.post(
+        'api/presupuesto-emergencia/autorizar',
+        {
+          'idPresupuestoEmergencia': idPresupuestoEmergencia,
+          'observacion': observacion,
+          'usuario': usuario,
+          'ip': '0.0.0.0',
+          'nombrePc': nombrePc,
+        },
+      );
+
+      return AutorizarPresupuestoResponse.fromJson(response);
+    } catch (e) {
+      return AutorizarPresupuestoResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al autorizar: $e',
+        ),
+      );
+    }
+  }
+
+  Future<ObservarPresupuestoResponse> observar({
+    required int idPresupuestoEmergencia,
+    required String observacion,
+    required String usuario,
+    required String empresaId,
+  }) async {
+    try {
+      final nombrePc = await DeviceInfoHelper.getNombreDispositivo();
+
+      final response = await _apiService.post(
+        'api/presupuesto-emergencia/observar',
+        {
+          'idPresupuestoEmergencia': idPresupuestoEmergencia,
+          'observacion': observacion,
+          'usuario': usuario,
+          'ip': '0.0.0.0',
+          'nombrePc': nombrePc,
+        },
+      );
+
+      return ObservarPresupuestoResponse.fromJson(response);
+    } catch (e) {
+      return ObservarPresupuestoResponse(
         baseResponse: BaseResponse(
           success: false,
           message: 'Error al observar: $e',

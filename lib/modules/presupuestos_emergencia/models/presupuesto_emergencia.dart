@@ -437,6 +437,48 @@ class PresupuestoEmergenciaConsultaResponse {
   bool get esExitoso => baseResponse.success;
 }
 
+// ─── Response de autorizar presupuesto (POST /autorizar) ─────────────────────
+class AutorizarPresupuestoResponse {
+  final BaseResponse baseResponse;
+  final String? mensaje;
+  final int? nuevoEstado;
+  final String? gdsDestino;
+  final String? destinoDescripcion;
+
+  AutorizarPresupuestoResponse({
+    required this.baseResponse,
+    this.mensaje,
+    this.nuevoEstado,
+    this.gdsDestino,
+    this.destinoDescripcion,
+  });
+
+  factory AutorizarPresupuestoResponse.fromJson(Map<String, dynamic> json) =>
+      AutorizarPresupuestoResponse(
+        baseResponse: BaseResponse.fromJson(
+            json['baseResponse'] ?? json),
+        mensaje:            json['mensaje']            as String?,
+        nuevoEstado:       (json['nuevoEstado']        as num?)?.toInt(),
+        gdsDestino:         json['gdsDestino']         as String?,
+        destinoDescripcion: json['destinoDescripcion'] as String?,
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
+class ObservarPresupuestoResponse {
+  final BaseResponse baseResponse;
+
+  ObservarPresupuestoResponse({required this.baseResponse});
+
+  factory ObservarPresupuestoResponse.fromJson(Map<String, dynamic> json) =>
+      ObservarPresupuestoResponse(
+        baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? json),
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
 // ─── Response detalle ─────────────────────────────────────────────────────────
 class PresupuestoEmergenciaDetalleResponse {
   final BaseResponse baseResponse;

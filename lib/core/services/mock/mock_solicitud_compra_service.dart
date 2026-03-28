@@ -39,37 +39,38 @@ class MockSolicitudCompraService extends SolicitudCompraService {
   }
 
   @override
-  Future<SolicitudCompraActionResponse> autorizarSolicitud({
-    required String solicitudId,
-    required String trabId,
+  Future<AutorizarSolicitudResponse> autorizarSolicitud({
+    required String solComCabId,
+    required int tipOpeCompId,
+    required String usuario,
     required String empresaId,
   }) async {
     await Future.delayed(const Duration(milliseconds: 600));
 
-    return SolicitudCompraActionResponse(
-      success: true,
-      message: 'Solicitud autorizada correctamente (mock)',
-      solicitudId: solicitudId,
-      estado: 'AUTORIZADO',
-      fechaAccion: DateTime.now(),
+    return AutorizarSolicitudResponse(
+      baseResponse: BaseResponse(
+        success: true,
+        message: 'Solicitud autorizada correctamente (mock)',
+      ),
+      mensajeOut: 'Solicitud autorizada correctamente (mock)',
     );
   }
 
   @override
-  Future<SolicitudCompraActionResponse> observarSolicitud({
-    required String solicitudId,
-    required String trabId,
+  Future<ObservarSolicitudResponse> observarSolicitud({
+    required String solComCabId,
+    required int tipOpeCompId,
+    required String observacion,
+    required String usuario,
     required String empresaId,
-    required String motivo,
   }) async {
     await Future.delayed(const Duration(milliseconds: 600));
 
-    return SolicitudCompraActionResponse(
-      success: true,
-      message: 'Solicitud observada correctamente (mock)',
-      solicitudId: solicitudId,
-      estado: 'OBSERVADO',
-      fechaAccion: DateTime.now(),
+    return ObservarSolicitudResponse(
+      baseResponse: BaseResponse(
+        success: true,
+        message: 'Se observó y se retornó al usuario para su enmienda. (mock)',
+      ),
     );
   }
 

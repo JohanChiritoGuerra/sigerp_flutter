@@ -718,6 +718,47 @@ class SolicitudCompra {
   }
 }
 
+// ─── Response autorizar solicitud de compra ────────────────────────────────
+class AutorizarSolicitudResponse {
+  final BaseResponse baseResponse;
+  final String? mensajeOut;
+  final int nuevoEstado;
+  final String? gdsDestino;
+  final String? destinoDescripcion;
+
+  AutorizarSolicitudResponse({
+    required this.baseResponse,
+    this.mensajeOut,
+    this.nuevoEstado = 0,
+    this.gdsDestino,
+    this.destinoDescripcion,
+  });
+
+  factory AutorizarSolicitudResponse.fromJson(Map<String, dynamic> json) =>
+      AutorizarSolicitudResponse(
+        baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? json),
+        mensajeOut:          json['mensajeOut']          as String?,
+        nuevoEstado:        (json['nuevoEstado']          as num?)?.toInt() ?? 0,
+        gdsDestino:          json['gdsDestino']          as String?,
+        destinoDescripcion:  json['destinoDescripcion']  as String?,
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
+class ObservarSolicitudResponse {
+  final BaseResponse baseResponse;
+
+  ObservarSolicitudResponse({required this.baseResponse});
+
+  factory ObservarSolicitudResponse.fromJson(Map<String, dynamic> json) =>
+      ObservarSolicitudResponse(
+        baseResponse: BaseResponse.fromJson(json['baseResponse'] ?? json),
+      );
+
+  bool get esExitoso => baseResponse.success;
+}
+
 // ─── Response de acciones (autorizar/observar) ──────────────────────────────
 class SolicitudCompraActionResponse {
   final bool success;

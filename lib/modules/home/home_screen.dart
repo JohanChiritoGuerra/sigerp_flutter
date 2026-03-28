@@ -47,30 +47,43 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final authService = context.read<AuthService>();
     final usuario = authService.usuario;
-    final trabId = usuario?.trabId ?? '';
+    final webUser = usuario?.webUser ?? '';
     final empresaId = usuario?.empresaId ?? '02';
 
     try {
-      // Llamar ambos servicios en paralelo
-      final pePendientesFuture = _peService.obtenerPresupuestosPendientes(trabId: trabId, empresaId: empresaId);
-      final scPendientesFuture = _scService.obtenerSolicitudesPendientes(trabId: trabId, empresaId: empresaId);
-      final peAutorizadosFuture = _peService.obtenerPresupuestosAutorizados(trabId: trabId, empresaId: empresaId);
-      final scAutorizadosFuture = _scService.obtenerSolicitudesAutorizadas(trabId: trabId, empresaId: empresaId);
+      final peFuture = _peService.obtenerListasAutorizacion(
+        usuario: webUser,
+        empresaId: empresaId,
+      );
+      final scFuture = _scService.obtenerListasAutorizacion(
+        usuario: webUser,
+        empresaId: empresaId,
+      );
+      final peConsultaFuture = _peService.obtenerListasConsulta(
+        usuario: webUser,
+        empresaId: empresaId,
+      );
+      final scConsultaFuture = _scService.obtenerListasConsulta(
+        usuario: webUser,
+        empresaId: empresaId,
+      );
 
-      final peRes = await pePendientesFuture;
-      final scRes = await scPendientesFuture;
-      final peAuthRes = await peAutorizadosFuture;
-      final scAuthRes = await scAutorizadosFuture;
+      final peRes        = await peFuture;
+      final scRes        = await scFuture;
+      final peConsultaRes = await peConsultaFuture;
+      final scConsultaRes = await scConsultaFuture;
 
       if (mounted) {
         setState(() {
-          _pendientesPresupuesto = peRes.success ? peRes.presupuestos.length : 0;
-          _pendientesSolicitud = scRes.success ? scRes.solicitudes.length : 0;
-          final peAutorizados = peAuthRes.success ? peAuthRes.presupuestos.length : 0;
-          final scAutorizados = scAuthRes.success ? scAuthRes.solicitudes.length : 0;
-          _consultaPresupuesto = _pendientesPresupuesto + peAutorizados;
-          _consultaSolicitud = _pendientesSolicitud + scAutorizados;
-          _ultimaActualizacion = DateTime.now();
+          _pendientesPresupuesto = peRes.esExitoso ? peRes.porAutorizar.length : 0;
+          _pendientesSolicitud   = scRes.esExitoso ? scRes.porAutorizar.length : 0;
+          _consultaPresupuesto   = peConsultaRes.esExitoso
+              ? peConsultaRes.porAtender.length + peConsultaRes.atendidos.length + peConsultaRes.anulados.length
+              : 0;
+          _consultaSolicitud     = scConsultaRes.esExitoso
+              ? scConsultaRes.porAutorizar.length + scConsultaRes.autorizados.length + scConsultaRes.anuladosRechazados.length
+              : 0;
+          _ultimaActualizacion   = DateTime.now();
           _isLoading = false;
         });
       }

@@ -1,5 +1,6 @@
 import '../models/solicitud_compra.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/utils/device_info_helper.dart';
 
 class SolicitudCompraService {
   final ApiService _apiService = ApiService();
@@ -161,26 +162,33 @@ class SolicitudCompraService {
   }
 
   /// Autoriza una solicitud de compra
-  Future<SolicitudCompraActionResponse> autorizarSolicitud({
-    required String solicitudId,
-    required String trabId,
+  Future<AutorizarSolicitudResponse> autorizarSolicitud({
+    required String solComCabId,
+    required int tipOpeCompId,
+    required String usuario,
     required String empresaId,
   }) async {
     try {
+      final nombrePc = await DeviceInfoHelper.getNombreDispositivo();
+
       final response = await _apiService.post(
-        'api/SolicitudCompra/Autorizar',
+        'api/solicitud-compra/autorizar',
         {
-          'solicitudId': solicitudId,
-          'trabId': trabId,
-          'empresaId': empresaId,
+          'solComCabId': solComCabId,
+          'tipOpeCompId': tipOpeCompId,
+          'usuario': usuario,
+          'ip': '0.0.0.0',
+          'nombrePc': nombrePc,
         },
       );
 
-      return SolicitudCompraActionResponse.fromJson(response);
+      return AutorizarSolicitudResponse.fromJson(response);
     } catch (e) {
-      return SolicitudCompraActionResponse(
-        success: false,
-        message: 'Error al autorizar: $e',
+      return AutorizarSolicitudResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al autorizar: $e',
+        ),
       );
     }
   }
@@ -238,28 +246,35 @@ class SolicitudCompraService {
   }
 
   /// Observa una solicitud de compra
-  Future<SolicitudCompraActionResponse> observarSolicitud({
-    required String solicitudId,
-    required String trabId,
+  Future<ObservarSolicitudResponse> observarSolicitud({
+    required String solComCabId,
+    required int tipOpeCompId,
+    required String observacion,
+    required String usuario,
     required String empresaId,
-    required String motivo,
   }) async {
     try {
+      final nombrePc = await DeviceInfoHelper.getNombreDispositivo();
+
       final response = await _apiService.post(
-        'api/SolicitudCompra/Observar',
+        'api/solicitud-compra/observar',
         {
-          'solicitudId': solicitudId,
-          'trabId': trabId,
-          'empresaId': empresaId,
-          'motivo': motivo,
+          'solComCabId': solComCabId,
+          'tipOpeCompId': tipOpeCompId,
+          'observacion': observacion,
+          'usuario': usuario,
+          'ip': '0.0.0.0',
+          'nombrePc': nombrePc,
         },
       );
 
-      return SolicitudCompraActionResponse.fromJson(response);
+      return ObservarSolicitudResponse.fromJson(response);
     } catch (e) {
-      return SolicitudCompraActionResponse(
-        success: false,
-        message: 'Error al observar: $e',
+      return ObservarSolicitudResponse(
+        baseResponse: BaseResponse(
+          success: false,
+          message: 'Error al observar: $e',
+        ),
       );
     }
   }

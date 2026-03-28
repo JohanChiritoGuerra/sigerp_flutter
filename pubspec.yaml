@@ -59,6 +59,7 @@ dependencies:
   # Notificaciones locales
   flutter_local_notifications: ^19.5.0
   intl: ^0.20.2
+  device_info_plus: ^12.3.0
 
 dev_dependencies:
   flutter_test:

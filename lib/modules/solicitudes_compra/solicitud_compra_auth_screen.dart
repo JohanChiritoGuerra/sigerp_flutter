@@ -108,8 +108,9 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     final usuario = authService.usuario;
 
     final response = await _service.autorizarSolicitud(
-      solicitudId: solicitud.solComCabId,
-      trabId: usuario?.trabId ?? '',
+      solComCabId: solicitud.solComCabId,
+      tipOpeCompId: solicitud.tipOpeCompId,
+      usuario: usuario?.webUser ?? '',
       empresaId: usuario?.empresaId ?? '02',
     );
 
@@ -120,7 +121,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Solicitud autorizada correctamente'),
+            content: Text(response.mensajeOut ?? 'Solicitud autorizada correctamente'),
             backgroundColor: Colors.green[600],
             behavior: SnackBarBehavior.floating,
           ),
@@ -131,7 +132,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.message ?? 'Error al autorizar'),
+            content: Text(response.baseResponse.message ?? 'Error al autorizar'),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
           ),
@@ -352,10 +353,11 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
     final usuario = authService.usuario;
 
     final response = await _service.observarSolicitud(
-      solicitudId: solicitud.solComCabId,
-      trabId: usuario?.trabId ?? '',
+      solComCabId: solicitud.solComCabId,
+      tipOpeCompId: solicitud.tipOpeCompId,
+      observacion: motivo,
+      usuario: usuario?.webUser ?? '',
       empresaId: usuario?.empresaId ?? '02',
-      motivo: motivo,
     );
 
     if (mounted) Navigator.pop(context);
@@ -365,8 +367,8 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Solicitud observada correctamente'),
-            backgroundColor: Colors.orange[600],
+            content: Text(response.baseResponse.message ?? 'Solicitud observada correctamente'),
+            backgroundColor: Colors.orange[700],
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -376,7 +378,7 @@ class _SolicitudCompraAuthScreenState extends State<SolicitudCompraAuthScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.message ?? 'Error al observar'),
+            content: Text(response.baseResponse.message ?? 'Error al observar'),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
           ),
