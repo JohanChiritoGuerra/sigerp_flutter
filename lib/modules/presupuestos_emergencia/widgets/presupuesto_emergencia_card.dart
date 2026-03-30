@@ -276,7 +276,7 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
         final partes = consultaItem.estado!.split(':');
         linea2 = partes.length > 1 ? 'EN ESPERA' : consultaItem.estado!;
         icono = Icons.schedule;
-        iconColor = EstadoPresupuesto.porAutorizar.color;
+        iconColor = EstadoPresupuesto.pendiente.color;
       } else if (consultaItem.estado!.contains('OBSERVADO:')) {
         linea1 = 'OBSERVACIÓN';
         final partes = consultaItem.estado!.split(':');
@@ -406,9 +406,9 @@ class PresupuestoEmergenciaCard extends StatelessWidget {
           icon = EstadoPresupuesto.observado.icon;
           texto = 'ANULADO';
         } else if (consultaItem.estado!.contains('EN ESPERA')) {
-          color = EstadoPresupuesto.porAutorizar.color;
-          bgColor = EstadoPresupuesto.porAutorizar.color.withOpacity(0.1);
-          icon = EstadoPresupuesto.porAutorizar.icon;
+          color = EstadoPresupuesto.pendiente.color;
+          bgColor = EstadoPresupuesto.pendiente.color.withOpacity(0.1);
+          icon = EstadoPresupuesto.pendiente.icon;
           texto = 'EN ESPERA';
         } else if (consultaItem.estado!.contains('OBSERVADO')) {
           color = EstadoPresupuesto.observado.color;
