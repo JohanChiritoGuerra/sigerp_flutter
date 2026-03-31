@@ -567,8 +567,11 @@ class SolicitudCompraDetalleResponse {
 
   double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
 
+  /// Total incluyendo IGV (18%)
+  double get totalConIgv => total * 1.18;
+
   String get totalFormateado {
-    final valor = total;
+    final valor = totalConIgv;
     final simbolo = detalle.isNotEmpty ? detalle.first.monedaAbrev : 'S/';
     final formatter = NumberFormat('#,##0.00', 'en_US');
     return '$simbolo ${formatter.format(valor)}';

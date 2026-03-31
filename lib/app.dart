@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/services/auth_service.dart';
-// Firebase - DESCOMENTAR cuando se configure Firebase:
-// import 'core/services/notification_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/utils/constants.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/home/home_screen.dart';
+import 'modules/presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
+import 'modules/solicitudes_compra/solicitud_compra_auth_screen.dart';
 
 /// GlobalKey para navegar desde fuera del widget tree (ej: notificaciones FCM)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -16,8 +17,21 @@ class SigerpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Firebase - DESCOMENTAR cuando se configure Firebase:
-    // NotificationService.navigatorKey = navigatorKey;
+    NotificationService.navigatorKey = navigatorKey;
+    NotificationService.onNotificationTapped = (data) {
+      final tipo = data['tipo']?.toString().toUpperCase();
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      if (tipo == 'PE') {
+        nav.push(MaterialPageRoute(
+          builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+        ));
+      } else if (tipo == 'SC') {
+        nav.push(MaterialPageRoute(
+          builder: (_) => const SolicitudCompraAuthScreen(),
+        ));
+      }
+    };
 
     return MultiProvider(
       providers: [

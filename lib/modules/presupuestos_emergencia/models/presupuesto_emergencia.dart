@@ -515,8 +515,11 @@ class PresupuestoEmergenciaDetalleResponse {
   /// Total calculado en el cliente igual que el VB
   double get total => detalle.fold(0, (sum, e) => sum + (e.subtotal ?? 0));
 
+  /// Total incluyendo IGV (18%)
+  double get totalConIgv => total * 1.18;
+
   String get totalFormateado {
-    final valor = total;
+    final valor = totalConIgv;
     final simbolo = detalle.isNotEmpty ? detalle.first.monedaSimbolo : '';
     
     if (simbolo.isEmpty) {

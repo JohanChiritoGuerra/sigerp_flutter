@@ -390,7 +390,7 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
             child: Column(
               children: [
                 Text(
-                  'MONTO TOTAL',
+                  'MONTO TOTAL (INC. IGV)',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

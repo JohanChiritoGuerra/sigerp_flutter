@@ -6,6 +6,7 @@ import '../models/login_sigerp_response.dart';
 import '../models/perfil_trabajador.dart';
 import '../utils/constants.dart';
 import 'api_service.dart';
+import 'notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -65,6 +66,10 @@ class AuthService extends ChangeNotifier {
 
         await obtenerPerfilTrabajador();
         await _saveUserData();
+        await NotificationService().configurarUsuario(
+          _usuario!.webUser ?? '',
+          _usuario!.empresaId ?? '02',
+        );
 
         _isLoading = false;
         notifyListeners();
@@ -109,6 +114,7 @@ class AuthService extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
+    await NotificationService().limpiarUsuario();
     _usuario = null;
     _perfilTrabajador = null;
     _apiService.setToken(null);
@@ -130,6 +136,10 @@ class AuthService extends ChangeNotifier {
         }
 
         await obtenerPerfilTrabajador();
+        await NotificationService().configurarUsuario(
+          _usuario!.webUser ?? '',
+          _usuario!.empresaId ?? '02',
+        );
         notifyListeners();
         return true;
       }

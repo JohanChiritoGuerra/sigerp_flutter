@@ -187,7 +187,7 @@ class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
                               ],
                               _buildSeccion(
                                 icono: Icons.payments_outlined,
-                                titulo: 'MONTO ESTIMADO',
+                                titulo: 'MONTO ESTIMADO (INC. IGV)',
                                 pastel: p,
                                 child: _buildMontoEstimado(p),
                               ),

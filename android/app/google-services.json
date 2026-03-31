@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "323715292733",
+    "project_id": "sigerp-13061970",
+    "storage_bucket": "sigerp-13061970.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:323715292733:android:30ff11f005f49183c81454",
+        "android_client_info": {
+          "package_name": "com.andahuasi.sigerp_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_dG2OciNkq96k83WZd4s0hFpvIEiGE-E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'api_service.dart';
 
 /// Handler de mensajes en background (debe ser top-level function)
 @pragma('vm:entry-point')
@@ -25,6 +26,11 @@ class NotificationService {
 
   /// Callback para cuando se toqua una notificación y hay datos de navegación
   static void Function(Map<String, dynamic> data)? onNotificationTapped;
+
+  /// Usuario autenticado (se establece tras el login / checkSavedSession)
+  static String? _webUser;
+  static String? _empresaId;
+  static String? _cachedToken;
 
   /// Canal de notificaciones Android (alta prioridad)
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -211,13 +217,44 @@ class NotificationService {
 
   /// Enviar token FCM al backend para asociarlo al usuario
   Future<void> _sendTokenToBackend(String token) async {
-    // TODO: Implementar cuando el backend esté listo
-    // Ejemplo:
-    // await ApiService().post('api/Notificaciones/RegistrarToken', {
-    //   'token': token,
-    //   'plataforma': Platform.isAndroid ? 'android' : 'ios',
-    // });
-    debugPrint('📤 [FCM] Token pendiente de enviar al backend: ${token.substring(0, 20)}...');
+    _cachedToken = token;
+    if (_webUser == null || _empresaId == null) {
+      debugPrint('📤 [FCM] Token en caché, esperando usuario autenticado');
+      return;
+    }
+    try {
+      await ApiService().post('api/Notificaciones/RegistrarToken', {
+        'webUser': _webUser,
+        'empresaId': _empresaId,
+        'fcmToken': token,
+        'nombreDispositivo': Platform.isAndroid ? 'Android' : 'iOS',
+        'plataforma': Platform.isAndroid ? 'android' : 'ios',
+      });
+      debugPrint('✅ [FCM] Token registrado en backend para usuario: $_webUser');
+    } catch (e) {
+      debugPrint('❌ [FCM] Error registrando token: $e');
+    }
+  }
+
+  /// Asociar el usuario autenticado al token FCM.
+  /// Llamar desde AuthService después del login o checkSavedSession.
+  Future<void> configurarUsuario(String webUser, String empresaId) async {
+    _webUser = webUser;
+    _empresaId = empresaId;
+    // Si ya teníamos el token en caché, enviarlo ahora que tenemos el usuario
+    if (_cachedToken != null) {
+      await _sendTokenToBackend(_cachedToken!);
+    } else {
+      // Solicitar token fresco
+      await _getToken();
+    }
+  }
+
+  /// Limpiar usuario (logout)
+  Future<void> limpiarUsuario() async {
+    _webUser = null;
+    _empresaId = null;
+    _cachedToken = null;
   }
 
   /// Suscribirse a un tema (ej: por empresa, por rol)
