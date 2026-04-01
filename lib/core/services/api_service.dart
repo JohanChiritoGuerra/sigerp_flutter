@@ -31,9 +31,9 @@ class ApiService {
   String? get token => _token;
   String? get refreshToken => _refreshToken;
 
-  // Cliente HTTP — en desarrollo ignora certificados autofirmados
+  // Cliente HTTP — ignora certificados autofirmados (app interna de empresa)
   http.Client _createClient() {
-    if (AppConfig.isDevelopment && !kIsWeb) {
+    if (!kIsWeb) {
       final ioClient = HttpClient()
         ..badCertificateCallback = (cert, host, port) => true;
       return IOClient(ioClient);

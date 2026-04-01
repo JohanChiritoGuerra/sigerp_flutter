@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/version_service.dart';
+import 'core/utils/app_version.dart';
 import 'core/utils/constants.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/home/home_screen.dart';
@@ -212,6 +214,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
+    // Verificar versión antes de continuar
+    final versionResult = await VersionService().verificarVersion();
+    if (!mounted) return;
+
+    if (versionResult != null && !versionResult.actualizado) {
+      await _mostrarModalActualizacion(versionResult.versionMinima);
+      return; // App bloqueada, el usuario debe ir a Sistemas
+    }
+
     // En modo mock, ir directo al login sin verificar sesión guardada
     if (AppConfig.useMockData) {
       Navigator.pushReplacement(
@@ -230,6 +241,61 @@ class _SplashScreenState extends State<SplashScreen>
       context,
       MaterialPageRoute(
         builder: (_) => hasSession ? const HomeScreen() : const LoginScreen(),
+      ),
+    );
+  }
+
+  Future<void> _mostrarModalActualizacion(String versionMinima) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100), size: 28),
+              SizedBox(width: 10),
+              Text('Versión desactualizada',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tu versión de SIGERP no está actualizada.',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Acércate al Departamento de Sistemas para instalar la versión más reciente.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Versión instalada:  $kAppVersion',
+                        style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text('Versión requerida:  $versionMinima',
+                        style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

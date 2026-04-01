@@ -45,7 +45,7 @@ class AppConfig {
   
   // ===== MODO MOCK PARA DESARROLLO =====
   // Cambiar a false cuando se conecte con la API real
-  static bool useMockData = true;
+  static bool useMockData = false;
 }
 
 class AppConstants {
