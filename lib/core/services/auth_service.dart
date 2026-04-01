@@ -65,7 +65,7 @@ class AuthService extends ChangeNotifier {
         }
 
         await obtenerPerfilTrabajador();
-        await _saveUserData();
+        if (rememberMe) await _saveUserData();
         await NotificationService().configurarUsuario(
           _usuario!.webUser ?? '',
           _usuario!.empresaId ?? '02',
