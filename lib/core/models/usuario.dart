@@ -43,8 +43,8 @@ class Usuario {
   // Crear Usuario desde JSON (respuesta de la API)
   factory Usuario.fromJson(Map<String, dynamic> json) {
     return Usuario(
-      webUser: json['webUser'],
-      usuaId: json['usuaId'],
+      webUser: (json['webUser'] as String?)?.trim(),
+      usuaId: (json['usuaId'] as String?)?.trim(),
       apellidoPaterno: json['apellidoPaterno'],
       apellidoMaterno: json['apellidoMaterno'],
       nombres: json['nombres'],
@@ -124,8 +124,8 @@ class Usuario {
 
   factory Usuario.fromLoginSigerp(LoginSigerpResponse r) {
     return Usuario(
-      webUser: r.usuaId,
-      usuaId: r.usuaId,
+      webUser: r.usuaId?.trim(),
+      usuaId: r.usuaId?.trim(),
       apellidoPaterno: r.apellidoPaterno,
       apellidoMaterno: r.apellidoMaterno,
       nombres: r.nombres,
