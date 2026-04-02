@@ -224,51 +224,105 @@ class _PresupuestoEmergenciaConsultaScreenState
                 ),
               ),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2024),
-                    lastDate: DateTime.now(),
-                    initialDateRange: _rangoFechas,
-                    locale: const Locale('es', 'ES'),
-                  );
-                  if (picked != null) {
-                    setModalState(() => _rangoFechas = picked);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.date_range, color: Colors.grey),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _rangoFechas != null
-                              ? '${_formatDate(_rangoFechas!.start)} - ${_formatDate(_rangoFechas!.end)}'
-                              : 'Seleccionar rango de fechas',
-                          style: TextStyle(
-                            color: _rangoFechas != null
-                                ? Colors.black
-                                : Colors.grey,
-                          ),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _rangoFechas?.start ?? DateTime.now(),
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime.now(),
+                          locale: const Locale('es', 'ES'),
+                        );
+                        if (picked != null) {
+                          final fin = _rangoFechas?.end ?? picked;
+                          setModalState(() => _rangoFechas = DateTimeRange(
+                            start: picked,
+                            end: fin.isBefore(picked) ? picked : fin,
+                          ));
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _rangoFechas != null
+                                    ? _formatDate(_rangoFechas!.start)
+                                    : 'Desde',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _rangoFechas != null ? Colors.black : Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (_rangoFechas != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
-                          onPressed: () {
-                            setModalState(() => _rangoFechas = null);
-                          },
-                        ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _rangoFechas?.end ?? DateTime.now(),
+                          firstDate: _rangoFechas?.start ?? DateTime(2024),
+                          lastDate: DateTime.now(),
+                          locale: const Locale('es', 'ES'),
+                        );
+                        if (picked != null) {
+                          final inicio = _rangoFechas?.start ?? picked;
+                          setModalState(() => _rangoFechas = DateTimeRange(
+                            start: inicio,
+                            end: picked,
+                          ));
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _rangoFechas != null
+                                    ? _formatDate(_rangoFechas!.end)
+                                    : 'Hasta',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _rangoFechas != null ? Colors.black : Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_rangoFechas != null) ...[  
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () => setModalState(() => _rangoFechas = null),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 24),
 
