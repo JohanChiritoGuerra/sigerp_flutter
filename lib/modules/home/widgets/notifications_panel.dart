@@ -42,24 +42,23 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
   Future<void> _loadData() async {
     final authService = context.read<AuthService>();
     final usuario = authService.usuario;
-    final trabId = usuario?.trabId ?? '';
+    final webUser = usuario?.webUser ?? '';
     final empresaId = usuario?.empresaId ?? '02';
 
     try {
-      final peRes = await _peService.obtenerPresupuestosPendientes(
-        trabId: trabId, 
+      final peRes = await _peService.obtenerListasAutorizacion(
+        usuario: webUser,
         empresaId: empresaId,
       );
-      final scRes = await _scService.obtenerSolicitudesPendientes(
-        trabId: trabId, 
+      final scRes = await _scService.obtenerListasAutorizacion(
+        usuario: webUser,
         empresaId: empresaId,
       );
 
       if (mounted) {
         setState(() {
-          // CORRECCIÓN: Usar baseResponse.success en lugar de esExitoso
-          //_presupuestosPendientes = peRes.baseResponse.success ? peRes.presupuestos : [];
-          _solicitudesPendientes = scRes.success ? scRes.solicitudes : [];
+          _presupuestosPendientes = peRes.esExitoso ? peRes.porAutorizar : [];
+          _solicitudesPendientes = scRes.esExitoso ? scRes.porAutorizar : [];
           _isLoading = false;
         });
       }
@@ -361,7 +360,7 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
       icon: Icons.emergency,
       codigo: pe.numero,
       titulo: pe.tipoEnum.label,
-      monto: 'S/ 0.00',
+      monto: null,
       solicitante: pe.usuario,
       fecha: pe.fechaFormateada,
       badge: 'PENDIENTE',
@@ -385,7 +384,7 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
       icon: Icons.shopping_cart,
       codigo: solicitud.codigo,
       titulo: solicitud.sustento ?? 'Solicitud de Compra',
-      monto: 'S/ ${solicitud.montoTotal.toStringAsFixed(2)}',
+      monto: null,
       solicitante: solicitud.solicitanteNombre,
       fecha: _formatTimeAgo(solicitud.fechaSolicitud),
       badge: solicitud.tipo.codigo,
@@ -407,7 +406,7 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
     required IconData icon,
     required String codigo,
     required String titulo,
-    required String monto,
+    String? monto,
     required String solicitante,
     required String fecha,
     required String badge,
@@ -511,14 +510,15 @@ class _NotificationsPanelState extends State<NotificationsPanel> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  monto,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor.withAlpha(220),
+                if (monto != null)
+                  Text(
+                    monto,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor.withAlpha(220),
+                    ),
                   ),
-                ),
               ],
             ),
           ],

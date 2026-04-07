@@ -10,7 +10,7 @@ void main() async {
   
   // Configurar el entorno
   // Development y Production usan la misma API: api.andahuasi.pe
-  AppConfig.setEnvironment(Environment.production); //production
+  AppConfig.setEnvironment(Environment.development); //production
 
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

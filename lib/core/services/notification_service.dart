@@ -150,16 +150,20 @@ class NotificationService {
 
   /// Manejar mensaje recibido en foreground
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('📬 [FCM Foreground] ${message.notification?.title}');
+    debugPrint('📬 [FCM Foreground] ${message.notification?.title ?? message.data['titulo']}');
 
+    // Si no hay bloque notification (mensaje data-only), construir título/cuerpo desde data
     final notification = message.notification;
-    if (notification == null) return;
+    final title = notification?.title ?? message.data['titulo'] ?? message.data['title'] ?? 'SIGERP';
+    final body  = notification?.body  ?? message.data['mensaje'] ?? message.data['body']  ?? '';
+
+    if (title == 'SIGERP' && body.isEmpty) return;
 
     // Mostrar notificación local (porque en foreground FCM no la muestra automáticamente)
     _localNotifications.show(
-      notification.hashCode,
-      notification.title ?? 'SIGERP',
-      notification.body ?? '',
+      message.hashCode,
+      title,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,
@@ -241,20 +245,18 @@ class NotificationService {
   Future<void> configurarUsuario(String webUser, String empresaId) async {
     _webUser = webUser;
     _empresaId = empresaId;
-    // Si ya teníamos el token en caché, enviarlo ahora que tenemos el usuario
-    if (_cachedToken != null) {
-      await _sendTokenToBackend(_cachedToken!);
-    } else {
-      // Solicitar token fresco
-      await _getToken();
-    }
+    // Siempre solicitar token fresco en cada login para asegurar que la BD
+    // tenga el token vigente del dispositivo, independientemente del usuario anterior.
+    await _getToken();
   }
 
   /// Limpiar usuario (logout)
+  /// IMPORTANTE: NO se borra _cachedToken porque el token FCM pertenece al
+  /// dispositivo, no al usuario. El siguiente login reutiliza el mismo token.
   Future<void> limpiarUsuario() async {
     _webUser = null;
     _empresaId = null;
-    _cachedToken = null;
+    // _cachedToken se conserva intencionalmente
   }
 
   /// Suscribirse a un tema (ej: por empresa, por rol)

@@ -10,7 +10,9 @@ import 'core/utils/constants.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/home/home_screen.dart';
 import 'modules/presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
+import 'modules/presupuestos_emergencia/presupuesto_emergencia_consulta_screen.dart';
 import 'modules/solicitudes_compra/solicitud_compra_auth_screen.dart';
+import 'modules/solicitudes_compra/solicitud_compra_consulta_screen.dart';
 
 /// GlobalKey para navegar desde fuera del widget tree (ej: notificaciones FCM)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -25,14 +27,62 @@ class SigerpApp extends StatelessWidget {
       final tipo = data['tipo']?.toString().toUpperCase();
       final nav = navigatorKey.currentState;
       if (nav == null) return;
-      if (tipo == 'PE') {
-        nav.push(MaterialPageRoute(
-          builder: (_) => const PresupuestoEmergenciaAuthScreen(),
-        ));
-      } else if (tipo == 'SC') {
-        nav.push(MaterialPageRoute(
-          builder: (_) => const SolicitudCompraAuthScreen(),
-        ));
+
+      switch (tipo) {
+        // Presupuesto de Emergencia — alguien debe autorizar
+        case 'AUTORIZACION':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+          ));
+          break;
+
+        // Presupuesto de Emergencia — el área de presupuesto debe atender
+        case 'ATENCION':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+          ));
+          break;
+
+        // Presupuesto de Emergencia — el creador fue observado o su PE fue atendido
+        case 'OBSERVACION':
+        case 'ATENCION_USUARIO':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+          ));
+          break;
+
+        // Solicitud de Compra — alguien debe autorizar (tipo antiguo)
+        case 'AUTORIZACION_SC':
+        // Solicitud de Compra — pendiente de autorización de jefe/gerente
+        case 'SOLICITUD_PENDIENTE':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const SolicitudCompraAuthScreen(),
+          ));
+          break;
+
+        // Solicitud de Compra — el creador fue observado o su SC fue atendida (tipo antiguo)
+        case 'OBSERVACION_SC':
+        case 'ATENCION_USUARIO_SC':
+        // Solicitud de Compra — notificaciones al creador desde los SPs
+        case 'SOLICITUD_AUTORIZADA':
+        case 'SOLICITUD_OBSERVADA':
+        case 'SOLICITUD_ERROR':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const SolicitudCompraConsultaScreen(),
+          ));
+          break;
+
+        // Compatibilidad con tipos anteriores PE / SC
+        case 'PE':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+          ));
+          break;
+        case 'SC':
+          nav.push(MaterialPageRoute(
+            builder: (_) => const SolicitudCompraAuthScreen(),
+          ));
+          break;
       }
     };
 
