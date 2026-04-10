@@ -24,8 +24,20 @@ class NotificationService {
   /// GlobalKey del Navigator para navegar desde fuera del widget tree
   static GlobalKey<NavigatorState>? navigatorKey;
 
-  /// Callback para cuando se toqua una notificación y hay datos de navegación
+  /// Callback para cuando se toca una notificación y hay datos de navegación
   static void Function(Map<String, dynamic> data)? onNotificationTapped;
+
+  /// Intent pendiente: si llegó una push pero no había sesión activa,
+  /// se guarda aquí para ejecutarlo después del login.
+  static Map<String, dynamic>? _pendingNavigation;
+
+  /// Consume el intent pendiente y lo devuelve (o null si no hay).
+  /// Llamar después del login exitoso.
+  static Map<String, dynamic>? consumePendingNavigation() {
+    final data = _pendingNavigation;
+    _pendingNavigation = null;
+    return data;
+  }
 
   /// Usuario autenticado (se establece tras el login / checkSavedSession)
   static String? _webUser;
@@ -203,19 +215,20 @@ class NotificationService {
     }
   }
 
-  /// Procesar datos de navegación de la notificación
-  /// 
-  /// Estructura esperada del payload:
-  /// {
-  ///   "tipo": "PE" | "SC",          // Presupuesto Emergencia o Solicitud Compra
-  ///   "id": "12345",                  // ID del documento
-  ///   "accion": "autorizar",          // Acción sugerida
-  /// }
+  /// Procesar datos de navegación de la notificación.
+  /// Si no hay sesión activa (sin callback registrado), guarda el intent
+  /// como pendiente para ejecutarlo tras el login.
   void _handleNotificationData(Map<String, dynamic> data) {
     debugPrint('📋 [Notification Data] $data');
 
+    if (data.isEmpty) return;
+
     if (onNotificationTapped != null) {
       onNotificationTapped!(data);
+    } else {
+      // No hay sesión activa — guardar para ejecutar tras el login
+      debugPrint('📌 [FCM] Guardando navegación pendiente hasta el login');
+      _pendingNavigation = data;
     }
   }
 
@@ -253,10 +266,25 @@ class NotificationService {
   /// Limpiar usuario (logout)
   /// IMPORTANTE: NO se borra _cachedToken porque el token FCM pertenece al
   /// dispositivo, no al usuario. El siguiente login reutiliza el mismo token.
+  /// SÍ se desregistra en el backend para que deje de recibir pushes.
   Future<void> limpiarUsuario() async {
+    // Desregistrar token en BD para que el servidor deje de enviar pushes
+    if (_webUser != null && _empresaId != null && _cachedToken != null) {
+      try {
+        await ApiService().post('api/Notificaciones/DesregistrarToken', {
+          'webUser': _webUser,
+          'empresaId': _empresaId,
+          'fcmToken': _cachedToken,
+        });
+        debugPrint('✅ [FCM] Token desregistrado en backend para usuario: $_webUser');
+      } catch (e) {
+        debugPrint('⚠️ [FCM] No se pudo desregistrar token: $e');
+        // No bloquear el logout aunque falle
+      }
+    }
     _webUser = null;
     _empresaId = null;
-    // _cachedToken se conserva intencionalmente
+    // _cachedToken se conserva intencionalmente (es del dispositivo)
   }
 
   /// Suscribirse a un tema (ej: por empresa, por rol)

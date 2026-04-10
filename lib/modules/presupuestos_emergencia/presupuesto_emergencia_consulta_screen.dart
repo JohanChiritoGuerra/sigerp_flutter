@@ -10,7 +10,8 @@ import 'widgets/presupuesto_detalle_modal.dart';
 /// Pantalla de consulta de presupuestos de emergencia (solo lectura)
 /// Permite ver el historial de todos los presupuestos sin opciones de autorización
 class PresupuestoEmergenciaConsultaScreen extends StatefulWidget {
-  const PresupuestoEmergenciaConsultaScreen({super.key});
+  final int? autoOpenId;
+  const PresupuestoEmergenciaConsultaScreen({super.key, this.autoOpenId});
 
   @override
   State<PresupuestoEmergenciaConsultaScreen> createState() =>
@@ -95,6 +96,34 @@ class _PresupuestoEmergenciaConsultaScreenState
         }
         _isLoading = false;
       });
+
+      // Auto-abrir detalle si se llegó desde una notificación
+      final autoId = widget.autoOpenId;
+      if (autoId != null && mounted) {
+        PresupuestoEmergenciaConsultaItem? target;
+        int tabIndex = 0;
+        try {
+          target = _porAtender.firstWhere((p) => p.idPresupuestoEmergencia == autoId);
+          tabIndex = 0;
+        } catch (_) {}
+        if (target == null) {
+          try {
+            target = _atendidos.firstWhere((p) => p.idPresupuestoEmergencia == autoId);
+            tabIndex = 1;
+          } catch (_) {}
+        }
+        if (target == null) {
+          try {
+            target = _anulados.firstWhere((p) => p.idPresupuestoEmergencia == autoId);
+            tabIndex = 2;
+          } catch (_) {}
+        }
+        if (target != null) {
+          _tabController.animateTo(tabIndex);
+          WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _mostrarDetallePresupuesto(target!));
+        }
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;

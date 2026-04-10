@@ -8,7 +8,8 @@ import 'widgets/solicitud_compra_card.dart';
 import 'widgets/solicitud_detalle_modal.dart';
 
 class SolicitudCompraConsultaScreen extends StatefulWidget {
-  const SolicitudCompraConsultaScreen({super.key});
+  final String? autoOpenId;
+  const SolicitudCompraConsultaScreen({super.key, this.autoOpenId});
 
   @override
   State<SolicitudCompraConsultaScreen> createState() =>
@@ -94,6 +95,34 @@ class _SolicitudCompraConsultaScreenState
           }
           _isLoading = false;
         });
+
+        // Auto-abrir detalle si se llegó desde una notificación
+        final autoId = widget.autoOpenId;
+        if (autoId != null) {
+          SolicitudCompraConsultaItem? target;
+          int tabIndex = 0;
+          try {
+            target = _porAutorizar.firstWhere((s) => s.solComCabId == autoId);
+            tabIndex = 0;
+          } catch (_) {}
+          if (target == null) {
+            try {
+              target = _autorizados.firstWhere((s) => s.solComCabId == autoId);
+              tabIndex = 1;
+            } catch (_) {}
+          }
+          if (target == null) {
+            try {
+              target = _anuladosRechazados.firstWhere((s) => s.solComCabId == autoId);
+              tabIndex = 2;
+            } catch (_) {}
+          }
+          if (target != null) {
+            _tabController.animateTo(tabIndex);
+            WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _mostrarDetalleSolicitud(target!));
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

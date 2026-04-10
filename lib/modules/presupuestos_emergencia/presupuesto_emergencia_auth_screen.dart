@@ -8,7 +8,8 @@ import 'widgets/presupuesto_emergencia_card.dart';
 import 'widgets/presupuesto_detalle_modal.dart';
 
 class PresupuestoEmergenciaAuthScreen extends StatefulWidget {
-  const PresupuestoEmergenciaAuthScreen({super.key});
+  final int? autoOpenId;
+  const PresupuestoEmergenciaAuthScreen({super.key, this.autoOpenId});
 
   @override
   State<PresupuestoEmergenciaAuthScreen> createState() =>
@@ -73,6 +74,32 @@ class _PresupuestoEmergenciaAuthScreenState
         }
         _isLoading = false;
       });
+
+      // Auto-abrir detalle si se llegó desde una notificación
+      final autoId = widget.autoOpenId;
+      if (autoId != null && mounted) {
+        PresupuestoEmergenciaListaItem? target;
+        bool esPendiente = false;
+        int tabIndex = 0;
+        try {
+          target = _presupuestosPendientes.firstWhere(
+              (p) => p.idPresupuestoEmergencia == autoId);
+          esPendiente = true;
+          tabIndex = 0;
+        } catch (_) {}
+        if (target == null) {
+          try {
+            target = _presupuestosAutorizados.firstWhere(
+                (p) => p.idPresupuestoEmergencia == autoId);
+            tabIndex = 1;
+          } catch (_) {}
+        }
+        if (target != null) {
+          _tabController.animateTo(tabIndex);
+          WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _showDetalleModal(target!, esPendiente));
+        }
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;

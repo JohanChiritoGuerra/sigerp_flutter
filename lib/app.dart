@@ -28,18 +28,18 @@ class SigerpApp extends StatelessWidget {
       final nav = navigatorKey.currentState;
       if (nav == null) return;
 
+      // El ID de referencia puede venir como 'idReferencia' o 'id'
+      final idRef = data['idReferencia']?.toString() ?? data['id']?.toString();
+
       switch (tipo) {
         // Presupuesto de Emergencia — alguien debe autorizar
         case 'AUTORIZACION':
-          nav.push(MaterialPageRoute(
-            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
-          ));
-          break;
-
         // Presupuesto de Emergencia — el área de presupuesto debe atender
         case 'ATENCION':
           nav.push(MaterialPageRoute(
-            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+            builder: (_) => PresupuestoEmergenciaAuthScreen(
+              autoOpenId: idRef != null ? int.tryParse(idRef) : null,
+            ),
           ));
           break;
 
@@ -47,7 +47,9 @@ class SigerpApp extends StatelessWidget {
         case 'OBSERVACION':
         case 'ATENCION_USUARIO':
           nav.push(MaterialPageRoute(
-            builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+            builder: (_) => PresupuestoEmergenciaConsultaScreen(
+              autoOpenId: idRef != null ? int.tryParse(idRef) : null,
+            ),
           ));
           break;
 
@@ -56,7 +58,7 @@ class SigerpApp extends StatelessWidget {
         // Solicitud de Compra — pendiente de autorización de jefe/gerente
         case 'SOLICITUD_PENDIENTE':
           nav.push(MaterialPageRoute(
-            builder: (_) => const SolicitudCompraAuthScreen(),
+            builder: (_) => SolicitudCompraAuthScreen(autoOpenId: idRef),
           ));
           break;
 
@@ -68,19 +70,21 @@ class SigerpApp extends StatelessWidget {
         case 'SOLICITUD_OBSERVADA':
         case 'SOLICITUD_ERROR':
           nav.push(MaterialPageRoute(
-            builder: (_) => const SolicitudCompraConsultaScreen(),
+            builder: (_) => SolicitudCompraConsultaScreen(autoOpenId: idRef),
           ));
           break;
 
         // Compatibilidad con tipos anteriores PE / SC
         case 'PE':
           nav.push(MaterialPageRoute(
-            builder: (_) => const PresupuestoEmergenciaAuthScreen(),
+            builder: (_) => PresupuestoEmergenciaAuthScreen(
+              autoOpenId: idRef != null ? int.tryParse(idRef) : null,
+            ),
           ));
           break;
         case 'SC':
           nav.push(MaterialPageRoute(
-            builder: (_) => const SolicitudCompraAuthScreen(),
+            builder: (_) => SolicitudCompraAuthScreen(autoOpenId: idRef),
           ));
           break;
       }

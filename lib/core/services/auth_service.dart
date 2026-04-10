@@ -71,6 +71,12 @@ class AuthService extends ChangeNotifier {
           _usuario!.empresaId ?? '02',
         );
 
+        // Ejecutar navegación pendiente si había una push tocada antes del login
+        final pendingData = NotificationService.consumePendingNavigation();
+        if (pendingData != null) {
+          NotificationService.onNotificationTapped?.call(pendingData);
+        }
+
         _isLoading = false;
         notifyListeners();
         return true;

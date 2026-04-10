@@ -51,7 +51,7 @@ class AppConfig {
 class AppConstants {
   // Nombre de la app
   static const String appName = 'Sigerp';
-  static const String appVersion = '1.0.1';
+  static const String appVersion = '1.0.2';
   
   // API Base URL - Diferencia entre Web (necesita dominio para CORS) y Móvil
   static String get apiBaseUrl => kIsWeb ? AppConfig.webApiBaseUrl : AppConfig.apiBaseUrl;

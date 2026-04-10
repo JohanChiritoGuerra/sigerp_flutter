@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/utils/app_version.dart';
 import '../../../core/utils/constants.dart';
 import '../../auth/login_screen.dart';
 
@@ -158,7 +159,7 @@ class ProfileBottomSheet extends StatelessWidget {
                     // Versión
                     Center(
                       child: Text(
-                        'SIGERP v1.0.0',
+                        'SIGERP v$kAppVersion',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[400],

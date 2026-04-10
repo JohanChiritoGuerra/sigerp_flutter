@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/notificaciones_push_service.dart';
+import '../../core/utils/app_version.dart';
 import '../../core/utils/constants.dart';
 import '../auth/login_screen.dart';
 import '../presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
@@ -23,9 +26,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final PresupuestoEmergenciaService _peService = PresupuestoEmergenciaService();
   final SolicitudCompraService _scService = SolicitudCompraService();
+  final NotificacionesPushService _notifService = NotificacionesPushService();
 
   int _pendientesPresupuesto = 0;
   int _pendientesSolicitud = 0;
+  int _notificacionesNoLeidas = 0;
   int _consultaPresupuesto = 0;
   int _consultaSolicitud = 0;
   DateTime? _ultimaActualizacion;
@@ -34,10 +39,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Cargar datos al iniciar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
     });
+    // Cuando llega una push en foreground, refrescar el conteo del badge
+    FirebaseMessaging.onMessage.listen((_) {
+      _refreshNotificacionesCount();
+    });
+  }
+
+  Future<void> _refreshNotificacionesCount() async {
+    if (!mounted) return;
+    final authService = context.read<AuthService>();
+    final usuario = authService.usuario;
+    final webUser = usuario?.webUser ?? '';
+    final empresaId = usuario?.empresaId ?? '02';
+    final res = await _notifService.consultarNoLeidas(
+      usuaId: webUser,
+      empresaId: empresaId,
+    );
+    if (mounted) {
+      setState(() {
+        _notificacionesNoLeidas = res.esExitoso ? res.notificaciones.length : 0;
+      });
+    }
   }
 
   Future<void> _refreshData() async {
@@ -68,15 +93,22 @@ class _HomeScreenState extends State<HomeScreen> {
         empresaId: empresaId,
       );
 
+      final notifFuture = _notifService.consultarNoLeidas(
+        usuaId: webUser,
+        empresaId: empresaId,
+      );
+
       final peRes        = await peFuture;
       final scRes        = await scFuture;
       final peConsultaRes = await peConsultaFuture;
       final scConsultaRes = await scConsultaFuture;
+      final notifRes     = await notifFuture;
 
       if (mounted) {
         setState(() {
-          _pendientesPresupuesto = peRes.esExitoso ? peRes.porAutorizar.length : 0;
-          _pendientesSolicitud   = scRes.esExitoso ? scRes.porAutorizar.length : 0;
+          _pendientesPresupuesto  = peRes.esExitoso ? peRes.porAutorizar.length : 0;
+          _pendientesSolicitud    = scRes.esExitoso ? scRes.porAutorizar.length : 0;
+          _notificacionesNoLeidas = notifRes.esExitoso ? notifRes.notificaciones.length : 0;
           _consultaPresupuesto   = peConsultaRes.esExitoso
               ? peConsultaRes.porAtender.length + peConsultaRes.atendidos.length + peConsultaRes.anulados.length
               : 0;
@@ -126,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final pendientesPresupuesto = _pendientesPresupuesto;
     final pendientesSolicitud = _pendientesSolicitud;
     final totalPendientes = pendientesPresupuesto + pendientesSolicitud;
+    final totalNotificaciones = _notificacionesNoLeidas;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -153,9 +186,17 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
-                onPressed: () => NotificationsPanel.show(context),
+                onPressed: () async {
+                  await NotificationsPanel.show(
+                    context,
+                    onRefreshNeeded: () {
+                      if (mounted) _refreshNotificacionesCount();
+                    },
+                  );
+                  if (mounted) _refreshNotificacionesCount();
+                },
               ),
-              if (totalPendientes > 0)
+              if (totalNotificaciones > 0)
                 Positioned(
                   right: 8,
                   top: 8,
@@ -170,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       minHeight: 18,
                     ),
                     child: Text(
-                      '$totalPendientes',
+                      '$totalNotificaciones',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -683,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    'v1.0.0 • Build 23',
+                    'v$kAppVersion • Build $kAppBuild',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey[600],
