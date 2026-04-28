@@ -614,8 +614,10 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
   // ─── Botones de acción ─────────────────────────────────────────────────────
 
   Widget _buildBotonesAccion(BuildContext context, _ModalPastel pastel) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+    return SafeArea(
+      top: false,
+      child: Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -682,6 +684,7 @@ class _PresupuestoDetalleModalState extends State<PresupuestoDetalleModal> {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -546,8 +546,10 @@ class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
   }
 
   Widget _buildBotonesAccion(BuildContext context, _SCModalPastel p) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+    return SafeArea(
+      top: false,
+      child: Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -612,6 +614,7 @@ class _SolicitudDetalleModalState extends State<SolicitudDetalleModal> {
           ),
         ],
       ),
+    ),
     );
   }
 }
