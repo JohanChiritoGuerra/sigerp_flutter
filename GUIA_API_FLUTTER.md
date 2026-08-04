@@ -38,12 +38,12 @@ class AppConfig {
     switch (_currentEnvironment) {
       case Environment.development:
         return kIsWeb 
-          ? 'https://api.andahuasi.pe/'     // Web usa dominio para CORS
+          ? 'https://apitrab.andahuasi.com/'     // Web usa dominio para CORS
           : 'https://192.168.100.120:7091/'; // Mobile puede usar IP directa
       case Environment.staging:
-        return 'https://staging.api.andahuasi.pe/';
+        return 'https://staging.apitrab.andahuasi.com/';
       case Environment.production:
-        return 'https://api.andahuasi.pe/';
+        return 'https://apitrab.andahuasi.com/';
     }
   }
 }
@@ -80,9 +80,9 @@ El backend debe agregar estos headers en la respuesta:
 builder.Services.AddCors(options => {
     options.AddPolicy("DevelopmentPolicy", policy => {
         policy.WithOrigins(
-            "https://trab.andahuasi.pe:7091",  // Desarrollo
+            "https://trab.andahuasi.com:7091",  // Desarrollo
             "http://localhost:*",              // Localhost
-            "https://*.andahuasi.pe"           // Wildcard para subdominios
+            "https://*.andahuasi.com"           // Wildcard para subdominios
         )
         .AllowAnyMethod()
         .AllowAnyHeader()
@@ -102,19 +102,19 @@ builder.Services.AddCors(options => {
 
 1. **Editar `C:\Windows\System32\drivers\etc\hosts`:**
    ```
-   192.168.100.120    trab.andahuasi.pe
+   192.168.100.120    trab.andahuasi.com
    ```
 
 2. **Ejecutar Flutter con HTTPS:**
    ```bash
    flutter run -d chrome \
      --web-port 7091 \
-     --web-hostname trab.andahuasi.pe \
+     --web-hostname trab.andahuasi.com \
      --web-tls-cert-path cert.pem \
      --web-tls-cert-key-path key.pem
    ```
 
-3. **Acceder a:** `https://trab.andahuasi.pe:7091`
+3. **Acceder a:** `https://trab.andahuasi.com:7091`
 
 ### Opción 3: Chrome sin seguridad CORS (Solo desarrollo)
 

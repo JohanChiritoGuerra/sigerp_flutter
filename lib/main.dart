@@ -9,8 +9,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Configurar el entorno
-  // Development y Production usan la misma API: api.andahuasi.pe
-  AppConfig.setEnvironment(Environment.development); //production
+  // Development y Production usan la misma API: apitrab.andahuasi.com
+  AppConfig.setEnvironment(Environment.production); //development
 
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

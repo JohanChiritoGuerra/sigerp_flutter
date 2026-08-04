@@ -29,8 +29,8 @@ La aplicación móvil **SIGERP** consume una API REST en ASP.NET Core. Está con
 | Entorno | URL (desde móvil) |
 |---|---|
 | `development` | `https://192.168.100.101:7255/` |
-| `staging` | `https://staging.api.andahuasi.pe/` |
-| `production` | `https://api.andahuasi.pe/` |
+| `staging` | `https://staging.apitrab.andahuasi.com/` |
+| `production` | `https://apitrab.andahuasi.com/` |
 
 > La URL base se configura una sola vez en `main.dart` y la usa el `ApiService` para todas las peticiones.
 

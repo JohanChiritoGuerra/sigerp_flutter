@@ -20,21 +20,21 @@ class AppConfig {
           ? 'https://localhost:7255/'
           : 'https://192.168.100.101:7255/';
     case Environment.staging:
-      return 'https://staging.api.andahuasi.pe/';
+      return 'https://staging.apitrab.andahuasi.com/';
     case Environment.production:
-      return 'https://api.andahuasi.pe/';
+      return 'https://apitrab.andahuasi.com/';
     }
   }
-  
+
   // URL para Web específicamente (siempre usa el dominio para CORS)
   static String get webApiBaseUrl {
   switch (_currentEnvironment) {
     case Environment.development:
       return 'https://localhost:7255/';
     case Environment.staging:
-      return 'https://staging.api.andahuasi.pe/';
+      return 'https://staging.apitrab.andahuasi.com/';
     case Environment.production:
-      return 'https://api.andahuasi.pe/';
+      return 'https://apitrab.andahuasi.com/';
     }
   }
   

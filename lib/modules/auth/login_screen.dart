@@ -156,9 +156,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: TextFormField(
                                       controller: _usuarioController,
                                       inputFormatters: [
-                                        // Permitir solo caracteres letras (incluyendo acentos y ñ)
-                                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]')),
-                                        LengthLimitingTextInputFormatter(15)
+                                        // Permitir letras, números y guión bajo (usuarios pueden tener números)
+                                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_\-]')),
+                                        LengthLimitingTextInputFormatter(20)
                                       ],
                                       style: const TextStyle(color: Colors.white),
                                       decoration: InputDecoration(
