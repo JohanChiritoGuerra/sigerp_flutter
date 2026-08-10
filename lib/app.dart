@@ -94,7 +94,8 @@ class SigerpApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
       ],
-      child: MaterialApp(
+      child: _AppLifecycleObserver(
+        child: MaterialApp(
         title: AppConstants.appName,
         navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
@@ -218,9 +219,48 @@ class SigerpApp extends StatelessWidget {
           ),
         ),
         home: const SplashScreen(),
+        ),
       ),
     );
   }
+}
+
+/// Refresca el menú de accesos cuando la app vuelve a primer plano — así se
+/// reflejan permisos otorgados/revocados mientras la sesión ya estaba abierta,
+/// sin tener que cerrar sesión y volver a entrar.
+class _AppLifecycleObserver extends StatefulWidget {
+  final Widget child;
+  const _AppLifecycleObserver({required this.child});
+
+  @override
+  State<_AppLifecycleObserver> createState() => _AppLifecycleObserverState();
+}
+
+class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final authService = context.read<AuthService>();
+      if (authService.usuario != null) {
+        authService.refrescarMenu();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class SplashScreen extends StatefulWidget {

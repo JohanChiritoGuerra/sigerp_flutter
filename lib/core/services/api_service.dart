@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -31,14 +32,24 @@ class ApiService {
   String? get token => _token;
   String? get refreshToken => _refreshToken;
 
-  // Cliente HTTP — ignora certificados autofirmados (app interna de empresa)
+  // Cliente HTTP reutilizable — ignora certificados autofirmados (app interna
+  // de empresa). Se crea UNA sola vez y se reutiliza en todas las peticiones:
+  // antes se creaba un HttpClient nuevo en cada llamada, lo que descartaba el
+  // keep-alive y forzaba un handshake TCP/TLS desde cero cada vez (esto era
+  // buena parte de la demora reportada, sobre todo con varias llamadas
+  // concurrentes como las que dispara la pantalla principal).
+  http.Client? _client;
+
   http.Client _createClient() {
+    if (_client != null) return _client!;
     if (!kIsWeb) {
       final ioClient = HttpClient()
         ..badCertificateCallback = (cert, host, port) => true;
-      return IOClient(ioClient);
+      _client = IOClient(ioClient);
+    } else {
+      _client = http.Client();
     }
-    return http.Client();
+    return _client!;
   }
 
   // GET
@@ -91,6 +102,69 @@ class ApiService {
         () => post(endpoint, body, retry: false),
         retry,
         skipAuthRetry: skipAuthRetry,
+      );
+    } on http.ClientException catch (_) {
+      return _errorResponse('Error de red. Verifica tu conexión a internet.');
+    } catch (e) {
+      return _errorResponse('Error de conexión: $e');
+    }
+  }
+
+  // GET binario (imágenes/archivos) — usa el mismo cliente que ignora el
+  // certificado autofirmado; Image.network no lo hace y por eso nunca carga.
+  Future<Uint8List?> getBytes(String endpoint, {Map<String, dynamic>? queryParams}) async {
+    try {
+      final client = _createClient();
+
+      Uri url = Uri.parse('${AppConstants.apiBaseUrl}$endpoint');
+      if (queryParams != null) {
+        url = url.replace(
+          queryParameters: queryParams.map((key, value) => MapEntry(key, value.toString())),
+        );
+      }
+
+      final response = await client
+          .get(url, headers: _headers(includeAuth: true)..remove('Content-Type'))
+          .timeout(Duration(seconds: AppConstants.connectionTimeout));
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error al descargar bytes de $endpoint: $e');
+      return null;
+    }
+  }
+
+  // POST multipart (con archivo adjunto)
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint,
+    Map<String, String> fields,
+    File file,
+    String fileFieldName, {
+    bool retry = true,
+  }) async {
+    try {
+      final client = _createClient();
+      final url = Uri.parse('${AppConstants.apiBaseUrl}$endpoint');
+      final request = http.MultipartRequest('POST', url);
+      request.headers.addAll({
+        'Accept': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      });
+      request.fields.addAll(fields);
+      request.files.add(await http.MultipartFile.fromPath(fileFieldName, file.path));
+
+      final streamedResponse = await client
+          .send(request)
+          .timeout(Duration(seconds: AppConstants.connectionTimeout));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return await _processResponse(
+        response,
+        () => postMultipart(endpoint, fields, file, fileFieldName, retry: false),
+        retry,
       );
     } on http.ClientException catch (_) {
       return _errorResponse('Error de red. Verifica tu conexión a internet.');
@@ -191,7 +265,7 @@ class ApiService {
       if (_refreshToken == null) return false;
 
       final client = _createClient();
-      final url = Uri.parse('${AppConstants.apiBaseUrl}api/Auth/refresh-token');
+      final url = Uri.parse('${AppConstants.apiBaseUrl}api/LoginSigerp/refresh');
       final response = await client
           .post(
             url,

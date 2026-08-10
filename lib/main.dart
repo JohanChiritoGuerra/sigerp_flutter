@@ -10,7 +10,7 @@ void main() async {
   
   // Configurar el entorno
   // Development y Production usan la misma API: apitrab.andahuasi.com
-  AppConfig.setEnvironment(Environment.production); //development
+  AppConfig.setEnvironment(Environment.production); //development   production
 
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

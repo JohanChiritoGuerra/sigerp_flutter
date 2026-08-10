@@ -64,6 +64,12 @@ dependencies:
   device_info_plus: ^12.3.0
   package_info_plus: ^8.3.0
 
+  # Escáner de código QR (Centro de Costo)
+  mobile_scanner: ^7.0.1
+
+  # Selección de foto de evidencia (cámara / galería)
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

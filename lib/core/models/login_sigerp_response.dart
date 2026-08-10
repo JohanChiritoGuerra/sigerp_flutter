@@ -13,7 +13,8 @@ class LoginSigerpResponse {
   final DateTime? contLabFecInicio;
   final DateTime? contLabFecFin;
   final int estado;
-  final String? token; // Por si el backend lo agrega luego
+  final String? token;
+  final String? refreshToken;
 
   LoginSigerpResponse({
     required this.success,
@@ -31,6 +32,7 @@ class LoginSigerpResponse {
     this.contLabFecFin,
     this.estado = 0,
     this.token,
+    this.refreshToken,
   });
 
   bool get esExitoso => success;
@@ -57,7 +59,8 @@ class LoginSigerpResponse {
           ? DateTime.tryParse(json['contLabFecFin'])
           : null,
       estado: json['estado'] as int? ?? 0,
-      token: json['token'] as String?, // null si el backend no lo envía
+      token: json['token'] as String?,
+      refreshToken: json['refreshToken'] as String?,
     );
   }
 }

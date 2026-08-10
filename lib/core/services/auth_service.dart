@@ -3,17 +3,29 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/usuario.dart';
 import '../models/login_sigerp_response.dart';
+import '../models/menu_usuario_response.dart';
 import '../models/perfil_trabajador.dart';
 import '../utils/constants.dart';
 import 'api_service.dart';
+import 'menu_service.dart';
 import 'notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiService _apiService = ApiService();
+  final MenuService _menuService = MenuService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
+  // AccNombre exactos configurados en la BD (Modulo=Finanzas/Gestión estratégica)
+  static const _accAutorizarPresupuesto = 'Autorizar - ppto emergencia';
+  static const _accConsultarPresupuesto = 'Consultar - ppto emergencia';
+  static const _accAutorizarSolicitud = 'Autorizar - solicitud de compra';
+  static const _accConsultarSolicitud = 'Consultar - solicitud de compra';
+  static const _accRegistrarDiesel = 'Registrar - abastecimiento diesel';
+  static const _accConsultarDiesel = 'Consultar - abastecimiento diesel';
 
   Usuario? _usuario;
   TrabajadorModel? _perfilTrabajador;
+  MenuUsuarioResponse? _menu;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -26,6 +38,14 @@ class AuthService extends ChangeNotifier {
 
   String get cargo => _perfilTrabajador?.cargo ?? '';
   String get area => 'Empresa Andahuasi';
+
+  // Permisos mobile (Modulo/Categoria/Acceso + RolAcceso/UsuarioAcceso.Mobile=1)
+  bool get puedeAutorizarPresupuesto => _menu?.tieneAcceso(_accAutorizarPresupuesto) ?? false;
+  bool get puedeConsultarPresupuesto => _menu?.tieneAcceso(_accConsultarPresupuesto) ?? false;
+  bool get puedeAutorizarSolicitud => _menu?.tieneAcceso(_accAutorizarSolicitud) ?? false;
+  bool get puedeConsultarSolicitud => _menu?.tieneAcceso(_accConsultarSolicitud) ?? false;
+  bool get puedeRegistrarDiesel => _menu?.tieneAcceso(_accRegistrarDiesel) ?? false;
+  bool get puedeConsultarDiesel => _menu?.tieneAcceso(_accConsultarDiesel) ?? false;
 
   // Login
   Future<bool> login({
@@ -43,6 +63,7 @@ class AuthService extends ChangeNotifier {
         'usuario': usuario,
         'password': password,
         'empresaId': empresaId,
+        'rememberMe': rememberMe,
       };
 
       debugPrint('🔐 LOGIN REQUEST: $requestBody');
@@ -63,8 +84,12 @@ class AuthService extends ChangeNotifier {
         if (_usuario!.token != null) {
           _apiService.setToken(_usuario!.token);
         }
+        if (loginResponse.refreshToken != null) {
+          _apiService.setRefreshToken(loginResponse.refreshToken);
+        }
 
         await obtenerPerfilTrabajador();
+        await _cargarMenuMobile();
         if (rememberMe) await _saveUserData();
         await NotificationService().configurarUsuario(
           _usuario!.webUser ?? '',
@@ -118,12 +143,35 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Vuelve a pedir el menú de accesos al backend — se usa cuando la app
+  // vuelve a primer plano, para reflejar accesos otorgados/revocados
+  // mientras la sesión ya estaba abierta (sin esto, solo se ven al
+  // volver a iniciar sesión).
+  Future<void> refrescarMenu() => _cargarMenuMobile();
+
+  // Obtener accesos mobile del usuario (autorizar/consultar presupuesto y solicitud)
+  Future<void> _cargarMenuMobile() async {
+    if (_usuario?.usuaId == null) return;
+
+    try {
+      _menu = await _menuService.obtenerMenuUsuarioMobile(
+        usuarioId: _usuario!.usuaId!,
+        empresaId: _usuario!.empresaId ?? '02',
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error al obtener menú mobile: $e');
+    }
+  }
+
   // Logout
   Future<void> logout() async {
     await NotificationService().limpiarUsuario();
     _usuario = null;
     _perfilTrabajador = null;
+    _menu = null;
     _apiService.setToken(null);
+    _apiService.setRefreshToken(null);
     await _clearUserData();
     notifyListeners();
   }
@@ -140,8 +188,13 @@ class AuthService extends ChangeNotifier {
         if (token != null) {
           _apiService.setToken(token);
         }
+        final refreshToken = await _storage.read(key: AppConstants.refreshTokenKey);
+        if (refreshToken != null) {
+          _apiService.setRefreshToken(refreshToken);
+        }
 
         await obtenerPerfilTrabajador();
+        await _cargarMenuMobile();
         await NotificationService().configurarUsuario(
           _usuario!.webUser ?? '',
           _usuario!.empresaId ?? '02',
@@ -161,6 +214,9 @@ class AuthService extends ChangeNotifier {
       if (_usuario!.token != null) {
         await _storage.write(key: AppConstants.tokenKey, value: _usuario!.token);
       }
+      if (_apiService.refreshToken != null) {
+        await _storage.write(key: AppConstants.refreshTokenKey, value: _apiService.refreshToken);
+      }
       await _storage.write(
         key: AppConstants.userKey,
         value: jsonEncode(_usuario!.toJson()),
@@ -171,6 +227,7 @@ class AuthService extends ChangeNotifier {
   // Limpiar datos guardados
   Future<void> _clearUserData() async {
     await _storage.delete(key: AppConstants.tokenKey);
+    await _storage.delete(key: AppConstants.refreshTokenKey);
     await _storage.delete(key: AppConstants.userKey);
   }
 

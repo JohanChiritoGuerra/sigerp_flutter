@@ -5,6 +5,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/notificaciones_push_service.dart';
 import '../../core/utils/app_version.dart';
 import '../../core/utils/constants.dart';
+import '../abastecimiento_diesel/abastecimiento_diesel_screen.dart';
 import '../auth/login_screen.dart';
 import '../presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
 import '../presupuestos_emergencia/presupuesto_emergencia_consulta_screen.dart';
@@ -149,10 +150,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final nombreCompleto = usuario?.nombreCompleto ?? 'Usuario';
     final primerNombre = nombreCompleto.split(' ').first;
 
-    // Determinar permisos (simulado - debe venir del backend)
-    final tienePermisoPresupuesto = true; // Cambiar según lógica real
-    final tienePermisoSolicitud = true;   // Cambiar según lógica real
+    // Permisos reales, obtenidos de /api/Menu/ObtenerMenuUsuarioMobile tras el login
+    final tienePermisoPresupuesto = authService.puedeAutorizarPresupuesto;
+    final tienePermisoSolicitud = authService.puedeAutorizarSolicitud;
     final tieneAlgunPermiso = tienePermisoPresupuesto || tienePermisoSolicitud;
+    final tieneConsultaPresupuesto = authService.puedeConsultarPresupuesto;
+    final tieneConsultaSolicitud = authService.puedeConsultarSolicitud;
+    final tieneAlgunaConsulta = tieneConsultaPresupuesto || tieneConsultaSolicitud;
+    final tieneAccesoDiesel = authService.puedeRegistrarDiesel || authService.puedeConsultarDiesel;
     
     // Usar conteos dinámicos del estado
     final pendientesPresupuesto = _pendientesPresupuesto;
@@ -243,7 +248,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      drawer: _buildDrawer(context, authService, tienePermisoPresupuesto, tienePermisoSolicitud),
+      drawer: _buildDrawer(
+        context,
+        authService,
+        tienePermisoPresupuesto,
+        tienePermisoSolicitud,
+        tieneConsultaPresupuesto,
+        tieneConsultaSolicitud,
+        tieneAccesoDiesel,
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         color: Color(AppColors.primaryColor),
@@ -366,47 +379,79 @@ class _HomeScreenState extends State<HomeScreen> {
             // Espacio entre secciones con fondo del home
             const SizedBox(height: 16),
             
-            // Sección CONSULTAS (siempre visible) - CON FRANJA
-            _buildSectionWithBand(
-              title: 'CONSULTAS',
-              backgroundColor: Colors.grey[50]!,
-              children: [
-                Expanded(
-                  child: ModuleCard(
-                    icon: Icons.description_outlined,
-                    title: 'Ver\nPresupuesto\nEmergencia',
-                    subtitle: 'Ver ($_consultaPresupuesto)',
-                    color: const Color(0xFF9C27B0),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
-                        ),
-                      );
-                    },
+            // Sección CONSULTAS (solo si tiene algún permiso de consulta) - CON FRANJA
+            if (tieneAlgunaConsulta)
+              _buildSectionWithBand(
+                title: 'CONSULTAS',
+                backgroundColor: Colors.grey[50]!,
+                children: [
+                  if (tieneConsultaPresupuesto)
+                    Expanded(
+                      child: ModuleCard(
+                        icon: Icons.description_outlined,
+                        title: 'Ver\nPresupuesto\nEmergencia',
+                        subtitle: 'Ver ($_consultaPresupuesto)',
+                        color: const Color(0xFF9C27B0),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  if (tieneConsultaPresupuesto && tieneConsultaSolicitud)
+                    const SizedBox(width: 12),
+                  if (tieneConsultaSolicitud)
+                    Expanded(
+                      child: ModuleCard(
+                        icon: Icons.shopping_bag_outlined,
+                        title: 'Ver\nSolicitud\nCompra',
+                        subtitle: 'Ver ($_consultaSolicitud)',
+                        color: Color(AppColors.successColor),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SolicitudCompraConsultaScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+
+            // Espacio entre secciones con fondo del home
+            if (tieneAlgunaConsulta && tieneAccesoDiesel)
+              const SizedBox(height: 16),
+
+            // Sección OPERACIONES (solo si tiene algún acceso operativo) - CON FRANJA
+            if (tieneAccesoDiesel)
+              _buildSectionWithBand(
+                title: 'OPERACIONES',
+                backgroundColor: Colors.grey[50]!,
+                children: [
+                  Expanded(
+                    child: ModuleCard(
+                      icon: Icons.local_gas_station_outlined,
+                      title: 'Abastecimiento\nde Diesel',
+                      color: const Color(0xFF455A64),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AbastecimientoDieselScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ModuleCard(
-                    icon: Icons.shopping_bag_outlined,
-                    title: 'Ver\nSolicitud\nCompra',
-                    subtitle: 'Ver ($_consultaSolicitud)',
-                    color: Color(AppColors.successColor),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SolicitudCompraConsultaScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            
+                ],
+              ),
+
             // Espacio final y última actualización
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -559,8 +604,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, AuthService authService, 
-      bool tienePermisoPresupuesto, bool tienePermisoSolicitud) {
+  Widget _buildDrawer(
+    BuildContext context,
+    AuthService authService,
+    bool tienePermisoPresupuesto,
+    bool tienePermisoSolicitud,
+    bool tieneConsultaPresupuesto,
+    bool tieneConsultaSolicitud,
+    bool tieneAccesoDiesel,
+  ) {
     final usuario = authService.usuario;
     final nombreCompleto = usuario?.nombreCompleto ?? 'Usuario';
     final webUser = usuario?.webUser ?? '';
@@ -666,38 +718,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Divider(height: 1),
                 ],
 
-                // Sección CONSULTAS (siempre visible)
-                _buildDrawerSection('CONSULTAS'),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.description_outlined,
-                  title: 'Ver Presupuestos de Emergencia',
-                  color: const Color(0xFF9C27B0),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
+                // Sección CONSULTAS (solo si tiene algún permiso de consulta)
+                if (tieneConsultaPresupuesto || tieneConsultaSolicitud) ...[
+                  _buildDrawerSection('CONSULTAS'),
+                  if (tieneConsultaPresupuesto)
+                    _buildDrawerItem(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'Ver Solicitudes de Compra',
-                  color: Color(AppColors.successColor),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
+                      icon: Icons.description_outlined,
+                      title: 'Ver Presupuestos de Emergencia',
+                      color: const Color(0xFF9C27B0),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PresupuestoEmergenciaConsultaScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  if (tieneConsultaSolicitud)
+                    _buildDrawerItem(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const SolicitudCompraConsultaScreen(),
-                      ),
-                    );
-                  },
-                ),
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Ver Solicitudes de Compra',
+                      color: Color(AppColors.successColor),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SolicitudCompraConsultaScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+
+                // Sección OPERACIONES (solo si tiene algún acceso operativo)
+                if (tieneAccesoDiesel) ...[
+                  _buildDrawerSection('OPERACIONES'),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.local_gas_station_outlined,
+                    title: 'Abastecimiento de Diesel',
+                    color: const Color(0xFF455A64),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AbastecimientoDieselScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
