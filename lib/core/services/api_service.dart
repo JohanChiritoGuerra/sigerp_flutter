@@ -53,7 +53,17 @@ class ApiService {
   }
 
   // GET
-  Future<Map<String, dynamic>> get(String endpoint, {Map<String, dynamic>? queryParams, bool retry = true, }) async {
+  //
+  // timeoutSeconds: opcional, para llamadas de fondo que pueden tardar más de
+  // lo normal (ej. sincronizar el catálogo completo de choferes, +9,000
+  // filas) sin que eso afecte el timeout de las llamadas interactivas
+  // normales, donde 30s ya es demasiada espera si algo se cuelga.
+  Future<Map<String, dynamic>> get(
+    String endpoint, {
+    Map<String, dynamic>? queryParams,
+    bool retry = true,
+    int? timeoutSeconds,
+  }) async {
     try {
       final client = _createClient();
 
@@ -69,11 +79,11 @@ class ApiService {
 
       final response = await client
           .get(url, headers: _headers())
-          .timeout(Duration(seconds: AppConstants.connectionTimeout));
+          .timeout(Duration(seconds: timeoutSeconds ?? AppConstants.connectionTimeout));
 
       return await _processResponse(
         response,
-        () => get(endpoint, queryParams: queryParams, retry: false),
+        () => get(endpoint, queryParams: queryParams, retry: false, timeoutSeconds: timeoutSeconds),
         retry,
       );
 
@@ -249,6 +259,37 @@ class ApiService {
       return _errorResponse('Error al procesar respuesta del servidor (${response.statusCode})');
     }
   }
+
+  // Avisa al servidor para invalidar el refresh token al cerrar sesión —
+  // "mejor esfuerzo": el logout local (borrar todo del celular) NUNCA debe
+  // depender de esto. Timeout corto a propósito y nunca lanza: si no hay
+  // señal en ese momento, simplemente no se pudo avisar, y el token en el
+  // servidor quedará vivo hasta su expiración natural — no es ideal, pero
+  // tampoco bloquea al usuario que solo quiere cerrar sesión ya.
+  Future<void> invalidarSesionRemota() async {
+    if (_refreshToken == null) return;
+    try {
+      final client = _createClient();
+      final url = Uri.parse('${AppConstants.apiBaseUrl}api/LoginSigerp/logout');
+      await client
+          .post(
+            url,
+            headers: _headers(includeAuth: false),
+            body: jsonEncode({'refreshToken': _refreshToken}),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('No se pudo invalidar la sesión en el servidor: $e');
+    }
+  }
+
+  // Renovación proactiva (no espera a que una petición falle con 401): se
+  // usa cuando la app vuelve a primer plano con señal, para que el token
+  // casi nunca llegue a expirar de verdad mientras el usuario siga abriendo
+  // la app de vez en cuando. Si no hay refresh token guardado o falla (sin
+  // señal, refresh token vencido), simplemente no hace nada — el mecanismo
+  // reactivo ante un 401 sigue funcionando igual como respaldo.
+  Future<bool> renovarTokenSiEsPosible() => _attemptRefreshToken();
 
   // Intentar refrescar el token
   Future<bool> _attemptRefreshToken() async {

@@ -8,6 +8,7 @@ import 'models/centro_costo.dart';
 import 'models/chofer.dart';
 import 'models/item_almacen.dart';
 import 'models/jefatura.dart';
+import 'services/abastecimiento_diesel_repository.dart';
 import 'services/abastecimiento_diesel_service.dart';
 import 'widgets/centro_costo_search_field.dart';
 import 'widgets/chofer_search_field.dart';
@@ -90,6 +91,7 @@ class AbastecimientoDieselFormScreen extends StatefulWidget {
 
 class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFormScreen> {
   final AbastecimientoDieselService _service = AbastecimientoDieselService();
+  final AbastecimientoDieselRepository _repository = AbastecimientoDieselRepository();
 
   // Perú no usa horario de verano: UTC-5 todo el año. Se calcula desde UTC
   // en vez de usar la hora local del dispositivo, porque esta puede venir
@@ -119,6 +121,11 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarItem();
       _cargarStock();
+      // No se espera (fire-and-forget): si toca sincronizar (máx. 1 vez al
+      // día) y hay señal, deja Centro de Costo y Jefatura al día para la
+      // próxima vez que falte conexión.
+      final empresaId = context.read<AuthService>().usuario?.empresaId ?? '02';
+      _repository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
     });
   }
 
@@ -178,7 +185,7 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
 
     setState(() => _cargandoJefatura = true);
 
-    final jefatura = await _service.obtenerJefatura(
+    final jefatura = await _repository.obtenerJefatura(
       gerenciaId: centroCosto.gerenciaId,
       dptoId: centroCosto.dptoId,
       seccId: centroCosto.seccId,
@@ -299,7 +306,12 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
 
   bool get _puedeGuardar {
     if (_guardando) return false;
-    if (_centroCosto == null || _jefatura == null || _chofer == null || _foto == null) return false;
+    // La Jefatura es solo informativa (el backend la vuelve a resolver a
+    // partir del Centro de Costo, no se envía desde acá) — no se exige para
+    // habilitar Guardar: podría no estar disponible sin conexión si esa
+    // Unidad puntual no tiene jefatura asignada, o si el catálogo local
+    // todavía no se sincronizó ni una vez.
+    if (_centroCosto == null || _chofer == null || _foto == null) return false;
     if (_errorCantidad(_cantidadController.text) != null) return false;
     if (_cantidadController.text.trim().isEmpty) return false;
     if (_kilometrajeController.text.trim().isEmpty) return false;
@@ -309,6 +321,7 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
   Future<void> _guardar() async {
     final authService = context.read<AuthService>();
     final empresaId = authService.usuario?.empresaId ?? '02';
+    final usuaId = authService.usuario?.usuaId ?? '';
 
     final cantidad = double.tryParse(_cantidadController.text.replaceAll(',', ''));
     final kilometraje = int.tryParse(_kilometrajeController.text.replaceAll(',', ''));
@@ -316,27 +329,41 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
 
     setState(() => _guardando = true);
 
-    final resultado = await _service.registrar(
-      codigoCentroCosto: _centroCosto!.centroCosto,
-      trabIdChofer: _chofer!.trabId,
+    final resultado = await _repository.registrar(
+      usuaId: usuaId,
+      empresaId: empresaId,
+      centroCosto: _centroCosto!,
+      chofer: _chofer!,
       cantidad: cantidad,
       kilometraje: kilometraje,
-      empresaId: empresaId,
       foto: _foto!,
     );
 
     if (!mounted) return;
     setState(() => _guardando = false);
 
-    if (resultado.exito) {
-      Navigator.pop(context, true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.green),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.red),
-      );
+    switch (resultado.estado) {
+      case RegistrarDieselEstado.exitoso:
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.green),
+        );
+        break;
+      case RegistrarDieselEstado.guardadoComoBorrador:
+        // Se guardó localmente, no en el servidor — color distinto al de
+        // éxito para que quede claro que aún falta enviarlo de verdad.
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.orange, duration: const Duration(seconds: 5)),
+        );
+        break;
+      case RegistrarDieselEstado.rechazado:
+        // El servidor sí respondió y rechazó por una regla real — se queda
+        // en el formulario para que el usuario decida qué corregir.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.red),
+        );
+        break;
     }
   }
 

@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/connectivity_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/version_service.dart';
 import 'core/utils/app_version.dart';
 import 'core/utils/constants.dart';
+import 'modules/abastecimiento_diesel/abastecimiento_diesel_screen.dart';
+import 'modules/abastecimiento_diesel/services/abastecimiento_diesel_repository.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/home/home_screen.dart';
 import 'modules/presupuestos_emergencia/presupuesto_emergencia_auth_screen.dart';
@@ -16,6 +20,11 @@ import 'modules/solicitudes_compra/solicitud_compra_consulta_screen.dart';
 
 /// GlobalKey para navegar desde fuera del widget tree (ej: notificaciones FCM)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// GlobalKey para mostrar SnackBars desde fuera del widget tree (ej: aviso de
+/// reconexión con borradores pendientes, sin importar en qué pantalla esté
+/// parado el usuario en ese momento).
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class SigerpApp extends StatelessWidget {
   const SigerpApp({super.key});
@@ -219,6 +228,7 @@ class SigerpApp extends StatelessWidget {
           ),
         ),
         home: const SplashScreen(),
+        scaffoldMessengerKey: scaffoldMessengerKey,
         ),
       ),
     );
@@ -237,16 +247,85 @@ class _AppLifecycleObserver extends StatefulWidget {
 }
 
 class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with WidgetsBindingObserver {
+  final ConnectivityService _connectivity = ConnectivityService();
+  final AbastecimientoDieselRepository _dieselRepository = AbastecimientoDieselRepository();
+  StreamSubscription<bool>? _conexionSub;
+  bool? _ultimoEstadoOnline;
+  AuthService? _authService;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Aviso de reconexión con borradores de Diesel pendientes, sin importar
+    // en qué pantalla esté el usuario en ese momento — antes solo se veía si
+    // justo estaba parado en la pantalla de Diesel. Si esa pantalla SÍ está
+    // abierta, ella misma ya muestra su propio aviso en el momento exacto
+    // (más inmediato), así que acá se evita duplicarlo.
+    _connectivity.isOnline().then((online) => _ultimoEstadoOnline = online);
+    _conexionSub = _connectivity.onStatusChange.listen(_onConectividadCambio);
+
+    // Sincroniza los catálogos de Diesel (Centro de Costo/Jefatura/Chofer) ni
+    // bien hay sesión activa con acceso al módulo — así no dependen de que el
+    // usuario entre manualmente a "Abastecimiento de Diesel" para que queden
+    // disponibles offline más tarde. sincronizarCatalogosSiCorresponde() ya
+    // tiene su propio límite de 24h adentro, así que no importa que esto se
+    // dispare varias veces (login, sesión restaurada, cada refresco de menú).
+    _authService = context.read<AuthService>();
+    _authService!.addListener(_onAuthCambio);
+    _onAuthCambio();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _conexionSub?.cancel();
+    _authService?.removeListener(_onAuthCambio);
     super.dispose();
+  }
+
+  void _onAuthCambio() {
+    final authService = _authService;
+    if (authService == null) return;
+    final usuario = authService.usuario;
+    if (usuario == null) return;
+    if (!authService.puedeRegistrarDiesel && !authService.puedeConsultarDiesel) return;
+
+    _dieselRepository.sincronizarCatalogosSiCorresponde(empresaId: usuario.empresaId ?? '02');
+  }
+
+  Future<void> _onConectividadCambio(bool online) async {
+    final eraOffline = _ultimoEstadoOnline == false;
+    _ultimoEstadoOnline = online;
+    if (!online || !eraOffline || dieselScreenAbierta || !mounted) return;
+
+    final authService = context.read<AuthService>();
+    final usuario = authService.usuario;
+    if (usuario == null) return;
+
+    final pendientes = await _dieselRepository.contarBorradoresPendientes(
+      usuaId: usuario.usuaId ?? '',
+      empresaId: usuario.empresaId ?? '02',
+    );
+    if (pendientes == 0) return;
+
+    scaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Conexión recuperada. Tienes $pendientes borrador${pendientes == 1 ? '' : 'es'} de Diesel pendiente${pendientes == 1 ? '' : 's'}.',
+        ),
+        backgroundColor: Colors.blueGrey[800],
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'Ver',
+          textColor: Colors.white,
+          onPressed: () => navigatorKey.currentState?.push(
+            MaterialPageRoute(builder: (_) => const AbastecimientoDieselScreen(initialTabIndex: 1)),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -255,6 +334,7 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
       final authService = context.read<AuthService>();
       if (authService.usuario != null) {
         authService.refrescarMenu();
+        authService.refrescarSesion();
       }
     }
   }

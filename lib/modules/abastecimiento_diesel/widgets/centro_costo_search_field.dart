@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/utils/constants.dart';
 import '../models/centro_costo.dart';
-import '../services/abastecimiento_diesel_service.dart';
+import '../services/abastecimiento_diesel_repository.dart';
 import 'qr_scanner_page.dart';
 
 class CentroCostoSearchField extends StatefulWidget {
@@ -22,7 +22,7 @@ class CentroCostoSearchField extends StatefulWidget {
 }
 
 class _CentroCostoSearchFieldState extends State<CentroCostoSearchField> {
-  final AbastecimientoDieselService _service = AbastecimientoDieselService();
+  final AbastecimientoDieselRepository _service = AbastecimientoDieselRepository();
 
   Future<void> _abrirBuscador() async {
     final seleccionado = await showModalBottomSheet<CentroCosto>(
@@ -117,7 +117,7 @@ class _CentroCostoSearchFieldState extends State<CentroCostoSearchField> {
 
 class _CentroCostoSearchSheet extends StatefulWidget {
   final String empresaId;
-  final AbastecimientoDieselService service;
+  final AbastecimientoDieselRepository service;
 
   const _CentroCostoSearchSheet({required this.empresaId, required this.service});
 

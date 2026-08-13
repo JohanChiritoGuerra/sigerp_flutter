@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/chofer.dart';
-import '../services/abastecimiento_diesel_service.dart';
+import '../services/abastecimiento_diesel_repository.dart';
 
 class ChoferSearchField extends StatefulWidget {
   final String empresaId;
@@ -20,7 +20,7 @@ class ChoferSearchField extends StatefulWidget {
 }
 
 class _ChoferSearchFieldState extends State<ChoferSearchField> {
-  final AbastecimientoDieselService _service = AbastecimientoDieselService();
+  final AbastecimientoDieselRepository _service = AbastecimientoDieselRepository();
 
   Future<void> _abrirBuscador() async {
     final seleccionado = await showModalBottomSheet<Chofer>(
@@ -84,7 +84,7 @@ class _ChoferSearchFieldState extends State<ChoferSearchField> {
 
 class _ChoferSearchSheet extends StatefulWidget {
   final String empresaId;
-  final AbastecimientoDieselService service;
+  final AbastecimientoDieselRepository service;
 
   const _ChoferSearchSheet({required this.empresaId, required this.service});
 

@@ -2,41 +2,40 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/utils/constants.dart';
 import '../models/abastecimiento_diesel_lista_item.dart';
-import '../services/abastecimiento_diesel_service.dart';
+import '../services/abastecimiento_diesel_repository.dart';
 
 class AbastecimientoDieselDetalleModal extends StatefulWidget {
   final AbastecimientoDieselListaItem item;
   final String empresaId;
+  final bool anulado;
 
   const AbastecimientoDieselDetalleModal({
     super.key,
     required this.item,
     required this.empresaId,
+    this.anulado = false,
   });
 
   @override
   State<AbastecimientoDieselDetalleModal> createState() => _AbastecimientoDieselDetalleModalState();
 }
 
-// Misma paleta de un solo color (azul corporativo) usada en el resto de la app,
-// pero derivada al mismo patrón acento/fondoClaro/textoFuerte/fondoMonto que
-// ya usan los modales de Solicitud de Compra y Presupuesto de Emergencia.
-class _Pastel {
-  static const Color acento = Color(AppColors.primaryColor);
-  static Color fondoClaro = acento.withValues(alpha: 0.08);
-  static const Color textoFuerte = Color(AppColors.primaryColor);
-  static Color fondoMonto = acento.withValues(alpha: 0.10);
-}
-
 class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselDetalleModal> {
-  final AbastecimientoDieselService _service = AbastecimientoDieselService();
+  final AbastecimientoDieselRepository _repository = AbastecimientoDieselRepository();
   Future<Uint8List?>? _fotoFuture;
+
+  // Misma paleta de un solo color (azul corporativo) usada en el resto de la
+  // app, salvo en Anulados, donde se usa rojo para que se note de inmediato
+  // que el parte fue anulado.
+  Color get _acento => widget.anulado ? Colors.red.shade400 : const Color(AppColors.primaryColor);
+  Color get _fondoClaro => _acento.withValues(alpha: 0.08);
+  Color get _textoFuerte => _acento;
 
   @override
   void initState() {
     super.initState();
     if (widget.item.tieneFoto) {
-      _fotoFuture = _service.obtenerFoto(salMatCabId: widget.item.salMatCabId, empresaId: widget.empresaId);
+      _fotoFuture = _repository.obtenerFoto(salMatCabId: widget.item.salMatCabId, empresaId: widget.empresaId);
     }
   }
 
@@ -117,18 +116,6 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
                       ),
                       const SizedBox(height: 20),
                       _buildSeccion(
-                        icono: Icons.local_gas_station_outlined,
-                        titulo: 'ÍTEM',
-                        child: _buildItem(item),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildSeccion(
-                        icono: Icons.payments_outlined,
-                        titulo: 'TOTAL',
-                        child: _buildTotal(item),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildSeccion(
                         icono: Icons.photo_camera_outlined,
                         titulo: 'FOTO DE EVIDENCIA',
                         child: _buildFoto(item),
@@ -149,7 +136,7 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: _Pastel.fondoClaro,
+        color: _fondoClaro,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -157,10 +144,10 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _Pastel.acento.withValues(alpha: 0.12),
+              color: _acento.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.local_gas_station, color: _Pastel.acento, size: 24),
+            child: Icon(Icons.local_gas_station, color: _acento, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -169,19 +156,19 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
               children: [
                 Text(
                   item.itemDescripcion.isNotEmpty ? item.itemDescripcion : 'Abastecimiento de Diesel',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _Pastel.textoFuerte, letterSpacing: 0.2),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _textoFuerte, letterSpacing: 0.2),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '#${item.numeroDocumento.isNotEmpty ? item.numeroDocumento : item.salMatCabId}',
-                  style: TextStyle(fontSize: 12, color: _Pastel.textoFuerte.withValues(alpha: 0.7)),
+                  style: TextStyle(fontSize: 12, color: _textoFuerte.withValues(alpha: 0.7)),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: Icon(Icons.close, color: _acento),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -195,11 +182,11 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
       children: [
         Row(
           children: [
-            Icon(icono, size: 18, color: _Pastel.textoFuerte),
+            Icon(icono, size: 18, color: _textoFuerte),
             const SizedBox(width: 8),
             Text(
               titulo,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _Pastel.textoFuerte, letterSpacing: 0.5),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textoFuerte, letterSpacing: 0.5),
             ),
           ],
         ),
@@ -230,12 +217,47 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
     );
   }
 
+  // La cantidad va destacada (badge de color, no texto plano) porque es el
+  // dato operativo más relevante del detalle — a diferencia de precio/total
+  // (ya no se muestran acá, son datos de costo, no algo que un chofer/jefe
+  // de campo necesite verificar).
+  Widget _buildInfoRowCantidad(String label, double cantidad, String unidadMedida) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: _fondoClaro, borderRadius: BorderRadius.circular(8)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.local_gas_station, size: 14, color: _acento),
+                const SizedBox(width: 5),
+                Text(
+                  '${_formatNumero(cantidad)}${unidadMedida.isNotEmpty ? ' $unidadMedida' : ''}',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _acento),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInformacionGeneral(AbastecimientoDieselListaItem item) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
+          _buildInfoRowCantidad('Cantidad', item.cantidad, item.unidadMedida),
           _buildInfoRow('Fecha', _formatFecha(item.fecha)),
           _buildInfoRow(
             'Unidad',
@@ -244,78 +266,6 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
           _buildInfoRow('Jefatura', item.jefatura),
           _buildInfoRow('Chofer', item.chofer),
           _buildInfoRow('Kilometraje', '${item.kilometraje} km'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItem(AbastecimientoDieselListaItem item) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _Pastel.acento.withValues(alpha: 0.15), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: _Pastel.fondoClaro, borderRadius: BorderRadius.circular(4)),
-                child: const Text(
-                  '21030010',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _Pastel.acento, fontFamily: 'monospace'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.itemDescripcion.isNotEmpty ? item.itemDescripcion : 'Diesel',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[800]),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
-                child: Text(
-                  '${_formatNumero(item.cantidad)}${item.unidadMedida.isNotEmpty ? ' ${item.unidadMedida}' : ''}',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.grey[700]),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text('x ${_formatNumero(item.precioUnitario)}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-              const Spacer(),
-              Text(
-                'S/. ${_formatNumero(item.total)}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _Pastel.textoFuerte),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTotal(AbastecimientoDieselListaItem item) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(color: _Pastel.fondoMonto, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Text(
-            'S/. ${_formatNumero(item.total)}',
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: _Pastel.textoFuerte),
-          ),
         ],
       ),
     );

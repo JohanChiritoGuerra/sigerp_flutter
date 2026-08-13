@@ -15,13 +15,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _usuarioController = TextEditingController();
   final _passwordController = TextEditingController();
   final _empresaController = TextEditingController(text: '02');
-  
+
   bool _obscurePassword = true;
-  bool _rememberMe = false;
+  // Errores de validación mostrados como texto APARTE, debajo de cada
+  // cápsula — no como el errorText nativo del TextFormField, que se dibuja
+  // dentro del mismo control y deforma la cápsula redondeada.
+  String? _usuarioError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -32,15 +35,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    final usuario = _usuarioController.text.trim();
+    final password = _passwordController.text;
+
+    setState(() {
+      _usuarioError = usuario.isEmpty ? 'Ingrese su usuario' : null;
+      _passwordError = password.isEmpty ? 'Ingrese su contraseña' : null;
+    });
+    if (_usuarioError != null || _passwordError != null) return;
 
     final authService = context.read<AuthService>();
-    
+
     final success = await authService.login(
-      usuario: _usuarioController.text.trim(),
-      password: _passwordController.text,
+      usuario: usuario,
+      password: password,
       empresaId: _empresaController.text.trim(),
-      rememberMe: _rememberMe,
     );
 
     if (success && mounted) {
@@ -56,6 +65,23 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
+  }
+
+  // Mensaje de validación como línea aparte, fuera de la cápsula del input
+  // (a diferencia del errorText nativo de TextFormField, que se dibuja
+  // dentro del mismo control y deforma la cápsula redondeada).
+  Widget _buildErrorInline(String mensaje) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 14, color: Colors.yellowAccent),
+          const SizedBox(width: 5),
+          Text(mensaje, style: const TextStyle(color: Colors.yellowAccent, fontSize: 12.5)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -139,9 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 40),
                             
                             // Formulario
-                            Form(
-                              key: _formKey,
-                              child: Column(
+                            Column(
                                 children: [
                                   // Campo Usuario
                                   Container(
@@ -173,25 +197,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                         border: InputBorder.none,
                                         enabledBorder: InputBorder.none,
                                         focusedBorder: InputBorder.none,
-                                        errorBorder: InputBorder.none,
-                                        focusedErrorBorder: InputBorder.none,
-                                        errorStyle: const TextStyle(color: Colors.yellowAccent),
                                         contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 20,
                                           vertical: 18,
                                         ),
                                       ),
-                                      validator: (value) {
-                                        if (value == null || value.trim().isEmpty) {
-                                          return 'Ingrese su usuario';
+                                      onChanged: (value) {
+                                        if (_usuarioError != null && value.trim().isNotEmpty) {
+                                          setState(() => _usuarioError = null);
                                         }
-                                        return null;
                                       },
                                     ),
                                   ),
-                                  
+                                  if (_usuarioError != null) ...[
+                                    const SizedBox(height: 6),
+                                    _buildErrorInline(_usuarioError!),
+                                  ],
+
                                   const SizedBox(height: 20),
-                                  
+
                                   // Campo Contraseña
                                   Container(
                                     decoration: BoxDecoration(
@@ -217,8 +241,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                         suffixIcon: IconButton(
                                           icon: Icon(
-                                            _obscurePassword 
-                                                ? Icons.visibility_off 
+                                            _obscurePassword
+                                                ? Icons.visibility_off
                                                 : Icons.visibility,
                                             color: Colors.white.withOpacity(0.7),
                                           ),
@@ -231,72 +255,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                         border: InputBorder.none,
                                         enabledBorder: InputBorder.none,
                                         focusedBorder: InputBorder.none,
-                                        errorBorder: InputBorder.none,
-                                        focusedErrorBorder: InputBorder.none,
-                                        errorStyle: const TextStyle(color: Colors.yellowAccent),
                                         contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 20,
                                           vertical: 18,
                                         ),
                                       ),
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Ingrese su contraseña';
+                                      onChanged: (value) {
+                                        if (_passwordError != null && value.isNotEmpty) {
+                                          setState(() => _passwordError = null);
                                         }
-                                        return null;
                                       },
                                     ),
                                   ),
-                                  
-                                  const SizedBox(height: 16),
-                                  
-                                  // Checkbox Recordarme
-                                  Row(
-                                    children: [
-                                      SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: Checkbox(
-                                          value: _rememberMe,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              _rememberMe = value ?? false;
-                                            });
-                                          },
-                                          fillColor: WidgetStateProperty.resolveWith((states) {
-                                            if (states.contains(WidgetState.selected)) {
-                                              return const Color(0xFF4CAF50);
-                                            }
-                                            return Colors.white.withOpacity(0.3);
-                                          }),
-                                          checkColor: Colors.white,
-                                          side: BorderSide(
-                                            color: Colors.white.withOpacity(0.5),
-                                            width: 1.5,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _rememberMe = !_rememberMe;
-                                          });
-                                        },
-                                        child: Text(
-                                          'Recordarme',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  
+                                  if (_passwordError != null) ...[
+                                    const SizedBox(height: 6),
+                                    _buildErrorInline(_passwordError!),
+                                  ],
+
                                   const SizedBox(height: 30),
                                   
                                   // Botón Ingresar
@@ -409,8 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   // ===== FIN BOTÓN MODO DEMO =====
                                 ],
                               ),
-                            ),
-                            
+
                             const Spacer(flex: 1),
                             const SizedBox(height: 24),
                           ],

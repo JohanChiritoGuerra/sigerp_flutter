@@ -15,6 +15,12 @@ class AbastecimientoDieselResultado {
   AbastecimientoDieselResultado({required this.exito, required this.mensaje});
 }
 
+// Timeout corto para Listar/ListarAnulados — se disparan solas al abrir la
+// pantalla, con fallback a la copia local si fallan. Con el timeout normal
+// (30s), un falso "conectado" (interfaz activa pero sin Internet real) hace
+// que la pantalla se sienta colgada antes de caer a lo local.
+const int _kTimeoutListado = 8;
+
 class AbastecimientoDieselService {
   final ApiService _apiService = ApiService();
 
@@ -25,6 +31,7 @@ class AbastecimientoDieselService {
     required int kilometraje,
     required String empresaId,
     required File foto,
+    required String idempotencyKey,
   }) async {
     final response = await _apiService.postMultipart(
       'api/AbastecimientoDiesel/Registrar',
@@ -34,6 +41,7 @@ class AbastecimientoDieselService {
         'cantidad': cantidad.toString(),
         'kilometraje': kilometraje.toString(),
         'empresaId': empresaId,
+        'idempotencyKey': idempotencyKey,
       },
       foto,
       'foto',
@@ -48,10 +56,27 @@ class AbastecimientoDieselService {
     );
   }
 
-  Future<List<AbastecimientoDieselListaItem>> listar({required String empresaId}) async {
+  // anio/mes: acota la consulta a un mes puntual — evita traer el historial
+  // completo del usuario en cada sincronización (ver AbastecimientoDieselRepository).
+  //
+  // timeoutSeconds corto (ver constante abajo): esta llamada se dispara sola
+  // al abrir la pantalla, con un fallback a la copia local si falla — pero
+  // ConnectivityService.isOnline() solo detecta que hay una interfaz de red
+  // activa, no que haya Internet real de punta a punta (ej. wifi conectado a
+  // un router sin salida, o datos móviles con falso "conectado"). Si eso
+  // pasa, este pedido igual se intenta, y con el timeout normal (30s) la
+  // pantalla se siente colgada un buen rato antes de caer a lo local, aunque
+  // en los hechos esté "sin conexión". Con un timeout corto, ese peor caso
+  // se nota mucho menos.
+  Future<List<AbastecimientoDieselListaItem>> listar({
+    required String empresaId,
+    required int anio,
+    required int mes,
+  }) async {
     final response = await _apiService.get(
       'api/AbastecimientoDiesel/Listar',
-      queryParams: {'empresaId': empresaId},
+      queryParams: {'empresaId': empresaId, 'anio': anio, 'mes': mes},
+      timeoutSeconds: _kTimeoutListado,
     );
 
     final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
@@ -63,11 +88,36 @@ class AbastecimientoDieselService {
         .toList();
   }
 
+  // Igual que listar(), pero de los partes ANULADOS del usuario logueado.
+  Future<List<AbastecimientoDieselListaItem>> listarAnulados({
+    required String empresaId,
+    required int anio,
+    required int mes,
+  }) async {
+    final response = await _apiService.get(
+      'api/AbastecimientoDiesel/ListarAnulados',
+      queryParams: {'empresaId': empresaId, 'anio': anio, 'mes': mes},
+      timeoutSeconds: _kTimeoutListado,
+    );
+
+    final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
+    if (!baseResponse.esExitoso) return [];
+
+    final data = response['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => AbastecimientoDieselListaItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // Sin caché acá: guardar la foto ya descargada en disco (para que también
+  // se pueda ver sin conexión más adelante) es responsabilidad del
+  // Repository, no de este wrapper puro del API.
   Future<Uint8List?> obtenerFoto({required int salMatCabId, required String empresaId}) async {
-    return await _apiService.getBytes(
+    final bytes = await _apiService.getBytes(
       'api/AbastecimientoDiesel/Foto/$salMatCabId',
       queryParams: {'empresaId': empresaId},
     );
+    return bytes;
   }
 
   Future<double?> obtenerStock({required String empresaId}) async {
@@ -105,10 +155,16 @@ class AbastecimientoDieselService {
     return ItemAlmacen.fromJson(itemJson);
   }
 
+  // timeoutSeconds: por defecto corto (búsqueda interactiva, con fallback a
+  // la copia local). La sincronización masiva (filtro vacío, ver
+  // AbastecimientoDieselRepository) pasa un valor más generoso explícito —
+  // son ~379 filas, no hace falta tanto como choferes, pero sí más que una
+  // búsqueda puntual mientras el usuario escribe.
   Future<List<CentroCosto>> buscarCentroCosto({
     required String filtro,
     required String empresaId,
     String cenCostCost = '81',
+    int timeoutSeconds = _kTimeoutListado,
   }) async {
     final response = await _apiService.get(
       'api/CentroCosto/Buscar',
@@ -117,6 +173,7 @@ class AbastecimientoDieselService {
         'empresaId': empresaId,
         'cenCostCost': cenCostCost,
       },
+      timeoutSeconds: timeoutSeconds,
     );
 
     final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
@@ -128,29 +185,20 @@ class AbastecimientoDieselService {
         .toList();
   }
 
-  Future<Jefatura?> obtenerJefatura({
-    required String gerenciaId,
-    required String dptoId,
-    required String seccId,
-    required String empresaId,
-  }) async {
+  // Todas las jefaturas activas de una sola vez — usado para sincronizar el
+  // catálogo local completo (ver AbastecimientoDieselRepository), en vez de
+  // pedir la jefatura de cada Centro de Costo una por una.
+  Future<List<Jefatura>> obtenerTodasLasJefaturas({required String empresaId}) async {
     final response = await _apiService.get(
-      'api/Jefatura/PorCentroCosto',
-      queryParams: {
-        'gerenciaId': gerenciaId,
-        'dptoId': dptoId,
-        'seccId': seccId,
-        'empresaId': empresaId,
-      },
+      'api/Jefatura/Todas',
+      queryParams: {'empresaId': empresaId},
     );
 
     final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
-    if (!baseResponse.esExitoso) return null;
+    if (!baseResponse.esExitoso) return [];
 
-    final jefaturaJson = response['jefatura'] as Map<String, dynamic>?;
-    if (jefaturaJson == null) return null;
-
-    return Jefatura.fromJson(jefaturaJson);
+    final data = response['data'] as List<dynamic>? ?? [];
+    return data.map((e) => Jefatura.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<Chofer>> buscarChofer({
@@ -163,6 +211,27 @@ class AbastecimientoDieselService {
         'filtro': filtro,
         'empresaId': empresaId,
       },
+      timeoutSeconds: _kTimeoutListado,
+    );
+
+    final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
+    if (!baseResponse.esExitoso) return [];
+
+    final data = response['data'] as List<dynamic>? ?? [];
+    return data.map((e) => Chofer.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // Todos los trabajadores activos de una sola vez — usado para sincronizar
+  // el catálogo local completo (ver AbastecimientoDieselRepository), en vez
+  // de depender del tope de la búsqueda en vivo. Timeout más largo que el
+  // normal (90s vs. 30s): es una llamada de fondo (no bloquea ninguna
+  // pantalla) que trae +9,000 filas — con una conexión mobile lenta, 30s
+  // puede no alcanzar y cortar la sincronización a medias.
+  Future<List<Chofer>> obtenerTodosLosChoferes({required String empresaId}) async {
+    final response = await _apiService.get(
+      'api/Trabajador/Todos',
+      queryParams: {'empresaId': empresaId},
+      timeoutSeconds: 90,
     );
 
     final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});

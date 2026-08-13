@@ -24,6 +24,14 @@ class AccesoMenuData {
       accOrden: json['accOrden'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'accesoId': accesoId,
+        'accNombre': accNombre,
+        'accURL': accURL,
+        'accTipo': accTipo,
+        'accOrden': accOrden,
+      };
 }
 
 class CategoriaMenuData {
@@ -46,6 +54,12 @@ class CategoriaMenuData {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'categoriaId': categoriaId,
+        'catNombre': catNombre,
+        'accesos': accesos.map((a) => a.toJson()).toList(),
+      };
 }
 
 class ModuloMenuData {
@@ -68,6 +82,12 @@ class ModuloMenuData {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'moduloId': moduloId,
+        'modNombre': modNombre,
+        'categorias': categorias.map((c) => c.toJson()).toList(),
+      };
 }
 
 class MenuUsuarioResponse {
@@ -87,6 +107,18 @@ class MenuUsuarioResponse {
           .toList(),
     );
   }
+
+  // Reconstruye el menú a partir de solo la lista de módulos cacheada
+  // localmente (sin baseResponse — se usa como respaldo cuando no hay
+  // conexión para pedir el menú real al backend).
+  factory MenuUsuarioResponse.desdeCache(List<dynamic> modulosJson) {
+    return MenuUsuarioResponse(
+      baseResponse: BaseResponse(success: true, message: 'Menú cacheado (sin conexión)'),
+      modulos: modulosJson.map((m) => ModuloMenuData.fromJson(m as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  List<Map<String, dynamic>> modulosToJson() => modulos.map((m) => m.toJson()).toList();
 
   bool get esExitoso => baseResponse.esExitoso;
 

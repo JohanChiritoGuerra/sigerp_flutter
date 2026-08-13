@@ -70,6 +70,21 @@ dependencies:
   # Selección de foto de evidencia (cámara / galería)
   image_picker: ^1.1.2
 
+  # Modo offline: base de datos local (espejo de datos leídos del API)
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  # sqflite no tiene implementación nativa en Windows/Linux (solo Android/iOS/
+  # macOS) — sin esto, abrir la base de datos local truena en escritorio.
+  sqflite_common_ffi: ^2.3.4+4
+
+  # Modo offline: detección de conectividad
+  connectivity_plus: ^6.1.4
+
+  # Modo offline: carpeta permanente para las fotos de borradores (a
+  # diferencia de la carpeta de caché que usa image_picker, esta no la borra
+  # el sistema automáticamente por espacio bajo)
+  path_provider: ^2.1.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

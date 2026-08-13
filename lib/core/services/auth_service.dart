@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/usuario.dart';
 import '../models/login_sigerp_response.dart';
 import '../models/menu_usuario_response.dart';
@@ -48,11 +49,17 @@ class AuthService extends ChangeNotifier {
   bool get puedeConsultarDiesel => _menu?.tieneAcceso(_accConsultarDiesel) ?? false;
 
   // Login
+  //
+  // rememberMe siempre es true: los choferes/jefaturas de campo pueden pasar
+  // días sin señal, así que la sesión (y el token largo que el backend emite
+  // para "recordarme") no puede depender de que alguien se acuerde de marcar
+  // una casilla. El parámetro se deja configurable solo por si en el futuro
+  // hace falta un flujo que explícitamente NO deba persistir sesión.
   Future<bool> login({
     required String usuario,
     required String password,
     required String empresaId,
-    bool rememberMe = false,
+    bool rememberMe = true,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -90,7 +97,9 @@ class AuthService extends ChangeNotifier {
 
         await obtenerPerfilTrabajador();
         await _cargarMenuMobile();
-        if (rememberMe) await _saveUserData();
+        // La sesión se guarda siempre (rememberMe es true por defecto) — sin
+        // esto, reabrir la app sin conexión no tendría nada que restaurar.
+        await _saveUserData();
         await NotificationService().configurarUsuario(
           _usuario!.webUser ?? '',
           _usuario!.empresaId ?? '02',
@@ -149,23 +158,76 @@ class AuthService extends ChangeNotifier {
   // volver a iniciar sesión).
   Future<void> refrescarMenu() => _cargarMenuMobile();
 
+  // Renueva el token en silencio cada vez que hay oportunidad (la app vuelve
+  // a primer plano con señal), igual que hacen Facebook/apps de campo tipo
+  // Salesforce: no esperan a que el token expire y falle una petición, lo
+  // renuevan antes, de forma invisible para el usuario. Si falla (sin señal,
+  // o el refresh token ya venció), no pasa nada aquí — el mecanismo
+  // reactivo de ApiService (reintentar tras un 401) sigue siendo el respaldo.
+  Future<void> refrescarSesion() async {
+    if (_usuario == null) return;
+    await _apiService.renovarTokenSiEsPosible();
+  }
+
   // Obtener accesos mobile del usuario (autorizar/consultar presupuesto y solicitud)
+  //
+  // Sin conexión, un pedido nuevo simplemente no puede llegar al backend —
+  // en vez de dejar al usuario sin menú, se cae al último menú que sí se
+  // descargó con éxito (guardado localmente). Es solo un tema visual: la
+  // acción real (Registrar/Listar, etc.) siempre revalida el acceso puntual
+  // en el servidor, así que una copia desactualizada acá no compromete nada.
   Future<void> _cargarMenuMobile() async {
     if (_usuario?.usuaId == null) return;
 
     try {
-      _menu = await _menuService.obtenerMenuUsuarioMobile(
+      final menuRemoto = await _menuService.obtenerMenuUsuarioMobile(
         usuarioId: _usuario!.usuaId!,
         empresaId: _usuario!.empresaId ?? '02',
       );
-      notifyListeners();
+      if (menuRemoto.esExitoso) {
+        _menu = menuRemoto;
+        await _guardarMenuCache(menuRemoto);
+        notifyListeners();
+        return;
+      }
+      await _cargarMenuDesdeCache();
     } catch (e) {
       debugPrint('Error al obtener menú mobile: $e');
+      await _cargarMenuDesdeCache();
+    }
+  }
+
+  String get _claveMenuCache => 'menu_cache_${_usuario?.usuaId}';
+
+  Future<void> _guardarMenuCache(MenuUsuarioResponse menu) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_claveMenuCache, jsonEncode(menu.modulosToJson()));
+    } catch (e) {
+      debugPrint('Error al guardar caché del menú: $e');
+    }
+  }
+
+  Future<void> _cargarMenuDesdeCache() async {
+    if (_menu != null) return; // ya hay un menú en memoria (de esta misma sesión), no lo pisamos con la caché
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString(_claveMenuCache);
+      if (data == null) return;
+      _menu = MenuUsuarioResponse.desdeCache(jsonDecode(data) as List<dynamic>);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error al cargar caché del menú: $e');
     }
   }
 
   // Logout
   Future<void> logout() async {
+    // Mejor esfuerzo: intenta invalidar la sesión en el servidor (con
+    // timeout corto). El borrado local de abajo sucede siempre, haya o no
+    // señal en este momento — el usuario nunca se queda esperando por esto.
+    await _apiService.invalidarSesionRemota();
+
     await NotificationService().limpiarUsuario();
     _usuario = null;
     _perfilTrabajador = null;
@@ -192,6 +254,11 @@ class AuthService extends ChangeNotifier {
         if (refreshToken != null) {
           _apiService.setRefreshToken(refreshToken);
         }
+
+        // Renovación proactiva también al arrancar la app desde cero (no
+        // solo al volver de segundo plano) — es el momento más común en que
+        // un token pudo quedar viejo tras varios días sin abrir la app.
+        await refrescarSesion();
 
         await obtenerPerfilTrabajador();
         await _cargarMenuMobile();

@@ -5,8 +5,9 @@ import '../models/abastecimiento_diesel_lista_item.dart';
 class AbastecimientoDieselCard extends StatelessWidget {
   final AbastecimientoDieselListaItem item;
   final VoidCallback onTap;
+  final bool anulado;
 
-  const AbastecimientoDieselCard({super.key, required this.item, required this.onTap});
+  const AbastecimientoDieselCard({super.key, required this.item, required this.onTap, this.anulado = false});
 
   String _formatFecha(DateTime dt) {
     final dd = dt.day.toString().padLeft(2, '0');
@@ -28,14 +29,14 @@ class AbastecimientoDieselCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primario = Color(AppColors.primaryColor);
+    final primario = anulado ? Colors.red.shade400 : Color(AppColors.primaryColor);
 
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200, width: 0.6),
+        side: BorderSide(color: anulado ? Colors.red.shade200 : Colors.grey.shade200, width: anulado ? 1 : 0.6),
       ),
       clipBehavior: Clip.antiAlias,
       color: Colors.white,

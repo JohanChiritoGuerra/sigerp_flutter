@@ -9,31 +9,22 @@ class EvidenciaFotoPicker extends StatelessWidget {
   const EvidenciaFotoPicker({super.key, required this.foto, required this.onChanged});
 
   Future<void> _seleccionar(BuildContext context) async {
-    final origen = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Tomar foto'),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Elegir de galería'),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (origen == null) return;
-
+    // Foto de evidencia: debe ser tomada en el momento (no elegida de la
+    // galería, que podría ser una foto vieja o de otro abastecimiento), por
+    // eso solo se ofrece la cámara — sin selector previo de por medio.
     final picker = ImagePicker();
-    final archivo = await picker.pickImage(source: origen, imageQuality: 80);
+    // Sin maxWidth/maxHeight, la cámara entrega la foto a resolución completa
+    // (3000x4000px o más — varios MB), aunque la calidad JPEG ya esté al 80%.
+    // Para una foto de evidencia (no una foto profesional), 1600px de lado
+    // mayor es de sobra para verse nítida en el celular, y reduce el archivo
+    // varias veces — más rápido de guardar, subir y, después, de descargar
+    // cada vez que alguien abre el detalle.
+    final archivo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+      maxWidth: 1600,
+      maxHeight: 1600,
+    );
     if (archivo != null) {
       onChanged(File(archivo.path));
     }
