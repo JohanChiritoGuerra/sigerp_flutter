@@ -11,9 +11,19 @@ import '../models/jefatura.dart';
 class AbastecimientoDieselResultado {
   final bool exito;
   final String mensaje;
+  // Código fijo del backend (ej. "STOCK_INSUFICIENTE") para distinguir el
+  // motivo de un rechazo sin depender del texto de "mensaje" — ese es para
+  // mostrárselo al usuario, y puede cambiar de redacción sin previo aviso.
+  final String? codigoError;
 
-  AbastecimientoDieselResultado({required this.exito, required this.mensaje});
+  AbastecimientoDieselResultado({required this.exito, required this.mensaje, this.codigoError});
 }
+
+// Código fijo que el backend manda cuando el rechazo es específicamente por
+// falta de stock — el único caso donde la app ofrece guardar como borrador
+// pese a ser un rechazo real del servidor (el stock es lo único de la lista
+// de validaciones que genuinamente puede cambiar solo con el tiempo).
+const String kCodigoErrorStockInsuficiente = 'STOCK_INSUFICIENTE';
 
 // Timeout corto para Listar/ListarAnulados — se disparan solas al abrir la
 // pantalla, con fallback a la copia local si fallan. Con el timeout normal
@@ -53,6 +63,7 @@ class AbastecimientoDieselService {
       mensaje: baseResponse.message ?? (baseResponse.esExitoso
           ? 'Registrado correctamente'
           : 'No se pudo registrar el abastecimiento'),
+      codigoError: response['codigoError'] as String?,
     );
   }
 
@@ -115,6 +126,17 @@ class AbastecimientoDieselService {
   Future<Uint8List?> obtenerFoto({required int salMatCabId, required String empresaId}) async {
     final bytes = await _apiService.getBytes(
       'api/AbastecimientoDiesel/Foto/$salMatCabId',
+      queryParams: {'empresaId': empresaId},
+    );
+    return bytes;
+  }
+
+  // PDF imprimible del Parte de Salida. No se cachea (a diferencia de la
+  // foto): imprimir es una acción puntual, no algo que se necesite ver
+  // offline más tarde.
+  Future<Uint8List?> obtenerPdfParte({required int salMatCabId, required String empresaId}) async {
+    final bytes = await _apiService.getBytes(
+      'api/AbastecimientoDiesel/ImprimirParte/$salMatCabId',
       queryParams: {'empresaId': empresaId},
     );
     return bytes;

@@ -123,9 +123,14 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
       _cargarStock();
       // No se espera (fire-and-forget): si toca sincronizar (máx. 1 vez al
       // día) y hay señal, deja Centro de Costo y Jefatura al día para la
-      // próxima vez que falte conexión.
+      // próxima vez que falte conexión. Con retraso: no le compite ancho de
+      // banda a _cargarItem()/_cargarStock() de arriba ni a las búsquedas en
+      // vivo que el usuario puede empezar a escribir de inmediato.
       final empresaId = context.read<AuthService>().usuario?.empresaId ?? '02';
-      _repository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        _repository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
+      });
     });
   }
 
@@ -358,13 +363,66 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
         );
         break;
       case RegistrarDieselEstado.rechazado:
-        // El servidor sí respondió y rechazó por una regla real — se queda
-        // en el formulario para que el usuario decida qué corregir.
+        // El servidor sí respondió y rechazó por una regla real. Único caso
+        // especial: sin stock — es el único rechazo que puede resolverse
+        // solo con el tiempo (llega combustible nuevo), así que se ofrece
+        // guardarlo como borrador en vez de perder lo ya completado.
+        if (resultado.puedeGuardarComoBorradorPorStock) {
+          final guardarComoBorrador = await _mostrarDialogoStockInsuficiente(resultado.mensaje);
+          if (guardarComoBorrador == true) {
+            await _repository.guardarBorradorPorStock(
+              usuaId: usuaId,
+              empresaId: empresaId,
+              centroCosto: _centroCosto!,
+              chofer: _chofer!,
+              cantidad: cantidad,
+              kilometraje: kilometraje,
+              foto: _foto!,
+              idempotencyKey: resultado.idempotencyKey!,
+              motivo: resultado.mensaje,
+            );
+            if (!mounted) return;
+            Navigator.pop(context, true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Guardado como borrador. Se puede reintentar cuando haya stock disponible.'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+            return;
+          }
+        }
+        // Rechazo normal (o el usuario prefirió no guardarlo): se queda en
+        // el formulario para que decida qué corregir.
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(resultado.mensaje), backgroundColor: Colors.red),
         );
         break;
     }
+  }
+
+  Future<bool?> _mostrarDialogoStockInsuficiente(String mensaje) {
+    // El título ya dice "Sin stock disponible" — el "Stock insuficiente."
+    // inicial del mensaje del backend queda redundante acá (sí se muestra
+    // completo en la tarjeta/detalle del borrador, donde no hay título que
+    // le dé ese contexto).
+    final detalle = mensaje.replaceFirst(RegExp(r'^Stock insuficiente\.?\s*'), '');
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sin stock disponible'),
+        content: Text('$detalle\n\nPuedes guardar este registro como borrador y enviarlo más tarde, sin tener que completar el formulario de nuevo.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Descartar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar como borrador'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEncabezadoItem() {

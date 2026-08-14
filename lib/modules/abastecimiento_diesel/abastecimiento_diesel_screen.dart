@@ -92,8 +92,15 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
       _cargarBorradores();
       // No se espera (fire-and-forget): mantiene Centro de Costo, Jefatura y
       // Chofer al día (máx. 1 vez al día) para cuando falte conexión más tarde.
+      // Con un pequeño retraso: sin esto, compite por ancho de banda con
+      // _cargar()/_cargarAnulados() de arriba justo en el peor momento (la
+      // pantalla que el usuario está mirando en este instante) — sobre todo
+      // notorio la primera vez que se sincronizan los +9,000 choferes.
       final empresaId = context.read<AuthService>().usuario?.empresaId ?? '02';
-      _repository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        _repository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
+      });
     });
 
     // Aviso (no bloqueante, con la pantalla activa) cuando vuelve la conexión
@@ -202,13 +209,13 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
     });
   }
 
-  Future<void> _reintentarBorrador(BorradorDiesel borrador, {bool mostrarResultado = true}) async {
-    if (borrador.id == null) return;
+  Future<RegistrarDieselResultado?> _reintentarBorrador(BorradorDiesel borrador, {bool mostrarResultado = true}) async {
+    if (borrador.id == null) return null;
     setState(() => _reintentandoIds.add(borrador.id!));
 
     final resultado = await _repository.reintentarBorrador(borrador);
 
-    if (!mounted) return;
+    if (!mounted) return resultado;
     setState(() => _reintentandoIds.remove(borrador.id!));
     await _cargarBorradores();
     if (resultado.estado == RegistrarDieselEstado.exitoso) _cargar();
@@ -225,17 +232,43 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
         ),
       );
     }
+    return resultado;
   }
 
   Future<void> _enviarTodosPendientes() async {
+    // Antes intentaba igual aunque no hubiera conexión (cada reintento no
+    // hacía nada) y al final SIEMPRE mostraba "se terminó de procesar" —
+    // sonaba a éxito aunque en los hechos no se hubiera enviado ninguno.
+    if (!await _connectivity.isOnline()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sigue sin conexión. Los borradores continúan pendientes.'),
+          backgroundColor: Colors.blueGrey,
+        ),
+      );
+      return;
+    }
+
     await _cargarBorradores();
     final pendientes = _borradores.where((b) => b.estado == EstadoBorrador.pendiente).toList();
+    var enviados = 0;
     for (final b in pendientes) {
-      await _reintentarBorrador(b, mostrarResultado: false);
+      final resultado = await _reintentarBorrador(b, mostrarResultado: false);
+      if (resultado?.estado == RegistrarDieselEstado.exitoso) enviados++;
     }
     if (!mounted) return;
+
+    final mensaje = pendientes.isEmpty
+        ? 'No había borradores pendientes por enviar.'
+        : enviados == 0
+            ? 'No se pudo enviar ningún borrador — revisa el motivo en cada tarjeta.'
+            : enviados == pendientes.length
+                ? 'Se enviaron los $enviados borrador${enviados == 1 ? '' : 'es'} pendientes.'
+                : 'Se enviaron $enviados de ${pendientes.length} borradores.';
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Se terminó de procesar los borradores pendientes.'), backgroundColor: Colors.blueGrey),
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.blueGrey),
     );
   }
 

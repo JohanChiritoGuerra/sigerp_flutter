@@ -85,6 +85,11 @@ dependencies:
   # el sistema automáticamente por espacio bajo)
   path_provider: ^2.1.5
 
+  # Impresión: por ahora solo abre la vista previa nativa (que ya lista las
+  # impresoras disponibles) — el envío directo sin vista previa es un paso
+  # posterior.
+  printing: ^5.14.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

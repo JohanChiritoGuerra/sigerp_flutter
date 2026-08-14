@@ -292,7 +292,17 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
     if (usuario == null) return;
     if (!authService.puedeRegistrarDiesel && !authService.puedeConsultarDiesel) return;
 
-    _dieselRepository.sincronizarCatalogosSiCorresponde(empresaId: usuario.empresaId ?? '02');
+    // Retraso a propósito: si esto arranca en el mismo instante del login,
+    // compite por ancho de banda con lo primero que el usuario realmente
+    // quiere ver (ej. abre "Mis salidas" apenas entra) — sobre todo grave en
+    // la primera sincronización de la instalación, cuando los 3 catálogos
+    // (incluidos los +9,000 choferes) se bajan enteros de una. Unos segundos
+    // de margen le dan prioridad a esa primera pantalla.
+    final empresaId = usuario.empresaId ?? '02';
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      _dieselRepository.sincronizarCatalogosSiCorresponde(empresaId: empresaId);
+    });
   }
 
   Future<void> _onConectividadCambio(bool online) async {
@@ -310,6 +320,14 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
     );
     if (pendientes == 0) return;
 
+    // El plugin de conectividad a veces reporta el reingreso a "online" en
+    // varios pasos intermedios muy seguidos mientras la conexión real se
+    // estabiliza (ej. wifi reconectando) — cada uno dispara este método de
+    // nuevo, y como los SnackBar se ENCOLAN (no se reemplazan), sin esto
+    // terminaban apilándose varios avisos idénticos uno atrás de otro,
+    // dando la sensación de un aviso "pegado" que no se iba nunca. Al
+    // limpiar la cola antes de mostrar, nunca hay más de uno a la vez.
+    scaffoldMessengerKey.currentState?.clearSnackBars();
     scaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
         content: Text(

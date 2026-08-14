@@ -62,6 +62,12 @@ class BorradorDieselCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final primario = Color(AppColors.primaryColor);
     final esError = borrador.estado == EstadoBorrador.error;
+    // "esperandoStock" se trata visualmente como una variante de "pendiente"
+    // (mismo color, no es un error del usuario ni algo roto) pero con su
+    // propio ícono/texto — para no confundirlo con "sin conexión", que es un
+    // motivo totalmente distinto.
+    final esEsperandoStock = borrador.estado == EstadoBorrador.esperandoStock;
+    final tieneMotivoVisible = (esError || esEsperandoStock) && borrador.motivoError != null;
 
     return Card(
       elevation: 0,
@@ -153,10 +159,16 @@ class BorradorDieselCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(esError ? Icons.error_outline : Icons.cloud_off, size: 12, color: esError ? Colors.red : Colors.orange[800]),
+                      Icon(
+                        esError
+                            ? Icons.error_outline
+                            : (esEsperandoStock ? Icons.production_quantity_limits : Icons.cloud_off),
+                        size: 12,
+                        color: esError ? Colors.red : Colors.orange[800],
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        esError ? 'Requiere atención' : 'Pendiente de envío',
+                        esError ? 'Requiere atención' : (esEsperandoStock ? 'Esperando stock' : 'Pendiente de envío'),
                         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: esError ? Colors.red : Colors.orange[800]),
                       ),
                     ],
@@ -164,11 +176,11 @@ class BorradorDieselCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (esError && borrador.motivoError != null) ...[
+            if (tieneMotivoVisible) ...[
               const SizedBox(height: 6),
               Text(
                 borrador.motivoError!,
-                style: const TextStyle(fontSize: 11.5, color: Colors.red),
+                style: TextStyle(fontSize: 11.5, color: esError ? Colors.red : Colors.orange[800]),
               ),
             ],
             const SizedBox(height: 8),

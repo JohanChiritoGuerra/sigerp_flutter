@@ -17,19 +17,40 @@ enum RegistrarDieselEstado { exitoso, guardadoComoBorrador, rechazado }
 class RegistrarDieselResultado {
   final RegistrarDieselEstado estado;
   final String mensaje;
+  // Solo poblados cuando estado == rechazado: permiten que la pantalla
+  // ofrezca "guardar como borrador" puntualmente para el único rechazo que
+  // amerita esa opción (sin stock), reusando la MISMA clave de idempotencia
+  // del intento que acaba de fallar.
+  final String? codigoError;
+  final String? idempotencyKey;
 
-  RegistrarDieselResultado._(this.estado, this.mensaje);
+  RegistrarDieselResultado._(this.estado, this.mensaje, {this.codigoError, this.idempotencyKey});
 
   factory RegistrarDieselResultado.exitoso(String mensaje) =>
       RegistrarDieselResultado._(RegistrarDieselEstado.exitoso, mensaje);
 
-  factory RegistrarDieselResultado.guardadoComoBorrador() => RegistrarDieselResultado._(
+  // esReintento: true cuando esto pasa al tocar "Reintentar" DESDE la propia
+  // pestaña Borradores — ahí no tiene sentido decirle al usuario "revisa la
+  // pestaña Borradores", ya está parado justo ahí mirando esa tarjeta. Ese
+  // mensaje ("revisa la pestaña...") solo aplica cuando el borrador se
+  // acaba de crear desde OTRA pantalla (el formulario).
+  factory RegistrarDieselResultado.guardadoComoBorrador({bool esReintento = false}) => RegistrarDieselResultado._(
         RegistrarDieselEstado.guardadoComoBorrador,
-        'Sin conexión. Se guardó como borrador — revisa la pestaña "Borradores" para enviarlo cuando haya señal.',
+        esReintento
+            ? 'Sigue sin conexión. El borrador continúa pendiente.'
+            : 'Sin conexión. Se guardó como borrador — revisa la pestaña "Borradores" para enviarlo cuando haya señal.',
       );
 
-  factory RegistrarDieselResultado.rechazado(String mensaje) =>
-      RegistrarDieselResultado._(RegistrarDieselEstado.rechazado, mensaje);
+  factory RegistrarDieselResultado.rechazado(String mensaje, {String? codigoError, String? idempotencyKey}) =>
+      RegistrarDieselResultado._(
+        RegistrarDieselEstado.rechazado,
+        mensaje,
+        codigoError: codigoError,
+        idempotencyKey: idempotencyKey,
+      );
+
+  bool get puedeGuardarComoBorradorPorStock =>
+      estado == RegistrarDieselEstado.rechazado && codigoError == kCodigoErrorStockInsuficiente;
 }
 
 class ListaDieselResultado {
@@ -150,6 +171,14 @@ class AbastecimientoDieselRepository {
     return bytes;
   }
 
+  // Imprimir requiere conexión siempre (el PDF se genera en el servidor al
+  // momento) — no tiene sentido cachearlo como la foto, es una acción
+  // puntual, no algo para consultar offline más tarde.
+  Future<Uint8List?> obtenerPdfParte({required int salMatCabId, required String empresaId}) async {
+    if (!await _connectivity.isOnline()) return null;
+    return _api.obtenerPdfParte(salMatCabId: salMatCabId, empresaId: empresaId);
+  }
+
   // ---------- Centro de Costo ----------
 
   // No cachea acá directamente — el catálogo completo solo se guarda desde
@@ -254,7 +283,44 @@ class AbastecimientoDieselRepository {
       return RegistrarDieselResultado.guardadoComoBorrador();
     }
 
-    return RegistrarDieselResultado.rechazado(resultado.mensaje);
+    return RegistrarDieselResultado.rechazado(
+      resultado.mensaje,
+      codigoError: resultado.codigoError,
+      idempotencyKey: idempotencyKey,
+    );
+  }
+
+  // Guarda como borrador un intento que el servidor YA rechazó explícitamente
+  // por falta de stock — a diferencia de _guardarComoBorrador (que se usa
+  // cuando ni siquiera se pudo intentar), acá se conoce el motivo exacto de
+  // entrada, así que nace directo en estado esperandoStock (no pendiente):
+  // no es un problema de conexión, es un recurso que hay que esperar a que
+  // se reponga. Reusa la MISMA idempotencyKey del intento rechazado — el
+  // servidor no llegó a crear nada (fue un rechazo limpio, con rollback), así
+  // que no hay riesgo de duplicado al reintentar con esa misma clave.
+  Future<void> guardarBorradorPorStock({
+    required String usuaId,
+    required String empresaId,
+    required CentroCosto centroCosto,
+    required Chofer chofer,
+    required double cantidad,
+    required int kilometraje,
+    required File foto,
+    required String idempotencyKey,
+    required String motivo,
+  }) {
+    return _guardarComoBorrador(
+      usuaId: usuaId,
+      empresaId: empresaId,
+      centroCosto: centroCosto,
+      chofer: chofer,
+      cantidad: cantidad,
+      kilometraje: kilometraje,
+      foto: foto,
+      idempotencyKey: idempotencyKey,
+      estado: EstadoBorrador.esperandoStock,
+      motivoError: motivo,
+    );
   }
 
   Future<void> _guardarComoBorrador({
@@ -266,6 +332,8 @@ class AbastecimientoDieselRepository {
     required int kilometraje,
     required File foto,
     required String idempotencyKey,
+    EstadoBorrador estado = EstadoBorrador.pendiente,
+    String? motivoError,
   }) async {
     // Copia la foto a una carpeta permanente ANTES de guardar el borrador —
     // la ruta que entrega la cámara vive en caché y el sistema la puede
@@ -288,6 +356,8 @@ class AbastecimientoDieselRepository {
       fotoPath: fotoPermanente,
       creadoEn: DateTime.now(),
       idempotencyKey: idempotencyKey,
+      estado: estado,
+      motivoError: motivoError,
     ));
   }
 
@@ -303,7 +373,7 @@ class AbastecimientoDieselRepository {
     }
 
     if (!await _connectivity.isOnline()) {
-      return RegistrarDieselResultado.guardadoComoBorrador();
+      return RegistrarDieselResultado.guardadoComoBorrador(esReintento: true);
     }
 
     final resultado = await _api.registrar(
@@ -328,7 +398,14 @@ class AbastecimientoDieselRepository {
 
     if (_esFalloDeConexion(resultado.mensaje)) {
       if (borrador.id != null) await _local.marcarPendiente(borrador.id!);
-      return RegistrarDieselResultado.guardadoComoBorrador();
+      return RegistrarDieselResultado.guardadoComoBorrador(esReintento: true);
+    }
+
+    // Si sigue sin stock, se queda en "esperandoStock" (no salta a "error")
+    // — sigue siendo el mismo motivo transitorio, no algo nuevo que revisar.
+    if (resultado.codigoError == kCodigoErrorStockInsuficiente) {
+      if (borrador.id != null) await _local.marcarEsperandoStock(borrador.id!, resultado.mensaje);
+      return RegistrarDieselResultado.rechazado(resultado.mensaje, codigoError: resultado.codigoError);
     }
 
     if (borrador.id != null) await _local.marcarError(borrador.id!, resultado.mensaje);
@@ -364,10 +441,24 @@ class AbastecimientoDieselRepository {
   // (centro de costo/jefatura), y encima cada reintento volvía a pedir las
   // 3 de nuevo. Así, un catálogo que ya sincronizó con éxito no se vuelve a
   // pedir aunque otro siga fallando (ej. choferes con una conexión lenta).
+  // Estático (no de instancia): esta clase se instancia una vez por pantalla
+  // (screen, modal, app.dart...), así que una bandera de instancia no evitaría
+  // que DOS instancias distintas arrancaran cada una su propia ronda casi al
+  // mismo tiempo (ej. una al iniciar sesión, otra al entrar al módulo unos
+  // segundos después) — eso duplicaba la descarga de los mismos catálogos en
+  // paralelo, compitiendo por el mismo ancho de banda justo cuando más
+  // importa que la app se sienta rápida (recién abierta).
+  static Future<void>? _syncEnCurso;
+
   Future<void> sincronizarCatalogosSiCorresponde({required String empresaId}) async {
     if (!await _connectivity.isOnline()) return;
 
-    await Future.wait([
+    if (_syncEnCurso != null) {
+      await _syncEnCurso;
+      return;
+    }
+
+    final ronda = Future.wait([
       _sincronizarUnCatalogoSiCorresponde(
         clave: 'diesel_sync_centrocosto_$empresaId',
         sincronizar: () async {
@@ -390,6 +481,13 @@ class AbastecimientoDieselRepository {
         },
       ),
     ]);
+
+    _syncEnCurso = ronda;
+    try {
+      await ronda;
+    } finally {
+      _syncEnCurso = null;
+    }
   }
 
   Future<void> _sincronizarUnCatalogoSiCorresponde({

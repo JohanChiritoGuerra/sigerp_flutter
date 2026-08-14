@@ -1,10 +1,15 @@
 // Estado de un borrador en la cola local (Outbox):
 // - pendiente: aún no se intentó enviar, o el último intento falló por
 //   conexión (se puede reintentar sin más información).
-// - error: el servidor lo rechazó por una regla de negocio (stock, cierre,
-//   permiso, etc.) — necesita que el usuario revise el motivo antes de
-//   reintentar, o elimine el borrador.
-enum EstadoBorrador { pendiente, error }
+// - error: el servidor lo rechazó por una regla de negocio permanente
+//   (cierre, permiso, configuración faltante, etc.) — necesita que el
+//   usuario revise el motivo antes de reintentar, o elimine el borrador.
+// - esperandoStock: el servidor lo rechazó puntualmente por falta de stock
+//   — a diferencia de "error", esto no es algo que el usuario tenga que
+//   corregir ni algo roto: es un recurso que se repone solo con el tiempo,
+//   así que se trata más como "pendiente" (reintentable sin más) pero con su
+//   propio ícono/texto para no confundirlo con "sin conexión".
+enum EstadoBorrador { pendiente, error, esperandoStock }
 
 class BorradorDiesel {
   final int? id;

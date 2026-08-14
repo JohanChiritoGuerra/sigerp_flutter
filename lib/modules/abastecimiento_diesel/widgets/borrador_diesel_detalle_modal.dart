@@ -14,6 +14,8 @@ class BorradorDieselDetalleModal extends StatelessWidget {
   const BorradorDieselDetalleModal({super.key, required this.borrador, required this.unidadMedida});
 
   bool get _esError => borrador.estado == EstadoBorrador.error;
+  bool get _esEsperandoStock => borrador.estado == EstadoBorrador.esperandoStock;
+  bool get _tieneMotivoVisible => (_esError || _esEsperandoStock) && borrador.motivoError != null;
   Color get _acento => _esError ? Colors.red.shade400 : Colors.orange.shade700;
   Color get _fondoClaro => _acento.withValues(alpha: 0.08);
 
@@ -84,7 +86,7 @@ class BorradorDieselDetalleModal extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(context),
-                      if (_esError && borrador.motivoError != null) ...[
+                      if (_tieneMotivoVisible) ...[
                         const SizedBox(height: 16),
                         _buildMotivoError(),
                       ],
@@ -140,10 +142,16 @@ class BorradorDieselDetalleModal extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Icon(_esError ? Icons.error_outline : Icons.cloud_off, size: 13, color: _acento.withValues(alpha: 0.8)),
+                    Icon(
+                      _esError
+                          ? Icons.error_outline
+                          : (_esEsperandoStock ? Icons.production_quantity_limits : Icons.cloud_off),
+                      size: 13,
+                      color: _acento.withValues(alpha: 0.8),
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      _esError ? 'Requiere atención' : 'Pendiente de envío',
+                      _esError ? 'Requiere atención' : (_esEsperandoStock ? 'Esperando stock' : 'Pendiente de envío'),
                       style: TextStyle(fontSize: 12, color: _acento.withValues(alpha: 0.8), fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -162,17 +170,17 @@ class BorradorDieselDetalleModal extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.06),
+        color: _acento.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+        border: Border.all(color: _acento.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 16, color: Colors.red),
+          Icon(Icons.info_outline, size: 16, color: _acento),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(borrador.motivoError!, style: const TextStyle(fontSize: 12.5, color: Colors.red)),
+            child: Text(borrador.motivoError!, style: TextStyle(fontSize: 12.5, color: _acento)),
           ),
         ],
       ),
@@ -227,12 +235,12 @@ class BorradorDieselDetalleModal extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.local_gas_station, size: 14, color: _acento),
-                const SizedBox(width: 5),
                 Text(
                   '${_formatCantidad(borrador.cantidad)}${unidadMedida.isNotEmpty ? ' $unidadMedida' : ''}',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _acento),
                 ),
+                const SizedBox(width: 5),
+                Icon(Icons.local_gas_station, size: 14, color: _acento),
               ],
             ),
           ),

@@ -290,6 +290,16 @@ class AbastecimientoDieselLocalStore {
     );
   }
 
+  Future<void> marcarEsperandoStock(int id, String motivo) async {
+    final db = await _db.database;
+    await db.update(
+      'borrador_diesel',
+      {'estado': EstadoBorrador.esperandoStock.name, 'motivoError': motivo},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> eliminarBorrador(int id) async {
     final db = await _db.database;
     await db.delete('borrador_diesel', where: 'id = ?', whereArgs: [id]);

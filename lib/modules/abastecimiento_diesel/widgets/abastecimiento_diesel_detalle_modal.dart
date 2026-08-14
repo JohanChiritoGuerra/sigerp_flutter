@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import '../../../core/utils/constants.dart';
 import '../models/abastecimiento_diesel_lista_item.dart';
 import '../services/abastecimiento_diesel_repository.dart';
@@ -23,6 +24,7 @@ class AbastecimientoDieselDetalleModal extends StatefulWidget {
 class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselDetalleModal> {
   final AbastecimientoDieselRepository _repository = AbastecimientoDieselRepository();
   Future<Uint8List?>? _fotoFuture;
+  bool _imprimiendo = false;
 
   // Misma paleta de un solo color (azul corporativo) usada en el resto de la
   // app, salvo en Anulados, donde se usa rojo para que se note de inmediato
@@ -55,6 +57,31 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
       buffer.write(entero[i]);
     }
     return '${buffer.toString()}.${partes[1]}';
+  }
+
+  // Por ahora abre la vista previa nativa de impresión (siempre lista las
+  // impresoras disponibles en el dispositivo) — el envío directo, sin vista
+  // previa, a una impresora de red configurada es un paso posterior.
+  Future<void> _imprimir(BuildContext context) async {
+    setState(() => _imprimiendo = true);
+
+    final pdf = await _repository.obtenerPdfParte(salMatCabId: widget.item.salMatCabId, empresaId: widget.empresaId);
+
+    if (!mounted) return;
+    setState(() => _imprimiendo = false);
+
+    if (pdf == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el documento. Verifica tu conexión e intenta de nuevo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final numero = widget.item.numeroDocumento.isNotEmpty ? widget.item.numeroDocumento : '${widget.item.salMatCabId}';
+    await Printing.layoutPdf(onLayout: (_) async => pdf, name: 'ParteSalida_$numero.pdf');
   }
 
   void _verFotoCompleta(BuildContext context, Uint8List bytes) {
@@ -167,6 +194,24 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
               ],
             ),
           ),
+          // Solo se puede imprimir desde "Mis salidas" — un parte anulado no
+          // debería volver a imprimirse (y los borradores ni siquiera tienen
+          // un salMatCabId real todavía, por eso este modal no se usa ahí).
+          if (!widget.anulado)
+            _imprimiendo
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _acento),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(Icons.print_outlined, color: _acento),
+                    tooltip: 'Imprimir',
+                    onPressed: () => _imprimir(context),
+                  ),
           IconButton(
             icon: Icon(Icons.close, color: _acento),
             onPressed: () => Navigator.pop(context),
@@ -237,12 +282,12 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.local_gas_station, size: 14, color: _acento),
-                const SizedBox(width: 5),
                 Text(
                   '${_formatNumero(cantidad)}${unidadMedida.isNotEmpty ? ' $unidadMedida' : ''}',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _acento),
                 ),
+                const SizedBox(width: 5),
+                Icon(Icons.local_gas_station, size: 14, color: _acento),
               ],
             ),
           ),

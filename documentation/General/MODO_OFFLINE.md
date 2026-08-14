@@ -263,9 +263,26 @@ bool _esFalloDeConexion(String mensaje) {
 }
 ```
 
+**Única excepción a esa regla: sin stock.** De todos los rechazos posibles (período cerrado, sin permiso, configuración faltante, sin stock), el stock es el único que genuinamente puede resolverse solo con el tiempo — llega combustible nuevo y el mismo pedido puede pasar después sin que el usuario cambie nada. Por eso, cuando el rechazo es puntualmente por stock, la pantalla ofrece un modal ("Sin stock disponible... ¿Guardar como borrador?") en vez de solo mostrar el rechazo. Para reconocer ESE rechazo puntual sin depender del texto del mensaje (que puede reescribirse), el backend manda un código fijo aparte:
+
+```csharp
+// AbastecimientoDieselResponse
+public string? CodigoError { get; set; }  // "STOCK_INSUFICIENTE", o null para cualquier otro caso
+```
+
+Si el usuario confirma, el borrador nace directo en un tercer estado (`EstadoBorrador.esperandoStock`, ver 7.3) — no en `pendiente` (eso mentiría, no es un problema de señal) ni en `error` "genérico" tal cual.
+
 ### 7.3 Qué se guarda en un borrador
 
-Tabla local `borrador_diesel`: centro de costo, chofer, cantidad, kilometraje, la ruta de la foto y un estado (`pendiente` / `error`, con motivo si aplica).
+Tabla local `borrador_diesel`: centro de costo, chofer, cantidad, kilometraje, la ruta de la foto y un estado:
+
+```dart
+enum EstadoBorrador { pendiente, error, esperandoStock }
+```
+
+- `pendiente`: sin conexión, o el último intento falló por conectividad — solo hace falta señal para reintentar.
+- `error`: el servidor lo rechazó por algo que **no** se arregla solo (período cerrado, sin permiso, configuración faltante) — necesita que el usuario revise el motivo.
+- `esperandoStock`: rechazado puntualmente por falta de stock — visualmente es una variante de "pendiente" (mismo color naranja, no es culpa del usuario ni algo roto) pero con su propio ícono (`production_quantity_limits`) y texto ("Esperando stock"), para no confundirlo con "sin conexión". Si se reintenta y sigue sin stock, se queda en este mismo estado (no salta a "error").
 
 ### 7.4 El problema de la foto y cómo se resolvió
 
