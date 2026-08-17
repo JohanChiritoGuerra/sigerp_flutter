@@ -72,6 +72,13 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
   bool _cargandoBorradores = true;
   final Set<int> _reintentandoIds = {};
 
+  // Evita que el aviso de "Conexión recuperada" se reinicie con cada
+  // parpadeo de conectividad (connectivity_plus a veces reporta el
+  // reingreso a "online" en varios pasos intermedios muy seguidos mientras
+  // la señal real se estabiliza) — mientras ya esté mostrándose, un nuevo
+  // parpadeo no lo reemplaza ni le reinicia el conteo de 8s.
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _reconexionSnackBarController;
+
   @override
   void initState() {
     super.initState();
@@ -130,7 +137,14 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
     final pendientes = await _repository.contarBorradoresPendientes(usuaId: _usuaId, empresaId: _empresaId);
     if (pendientes == 0 || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Evitar reiniciar el SnackBar de reconexión si ya está visible por un
+    // parpadeo anterior. Cuando el usuario lanza una acción que debe
+    // reemplazar el aviso (ej. el resultado de un reintento) esa acción
+    // seguirá usando `clearSnackBars()` explícitamente antes de mostrar,
+    // lo que también libera este guard (clearSnackBars dispara `closed`).
+    if (_reconexionSnackBarController != null) return;
+
+    _reconexionSnackBarController = ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Conexión recuperada. Tienes $pendientes borrador${pendientes == 1 ? '' : 'es'} pendiente${pendientes == 1 ? '' : 's'}.'),
         backgroundColor: Colors.blueGrey[800],
@@ -138,6 +152,21 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
         action: SnackBarAction(label: 'Enviar', textColor: Colors.white, onPressed: _enviarTodosPendientes),
       ),
     );
+    // Garantía adicional: si por alguna razón el `closed` no se completa
+    // (timer pausado o bug), forzamos el cierre pasado el tiempo esperado.
+    final controllerRef = _reconexionSnackBarController;
+    Future.delayed(const Duration(seconds: 9), () {
+      if (controllerRef != null && _reconexionSnackBarController == controllerRef) {
+        try {
+          controllerRef.close();
+        } catch (_) {
+          // ignore: no-op
+        }
+      }
+    });
+    _reconexionSnackBarController!.closed.then((_) {
+      _reconexionSnackBarController = null;
+    });
   }
 
   Future<void> _cargar() async {
@@ -221,6 +250,10 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
     if (resultado.estado == RegistrarDieselEstado.exitoso) _cargar();
 
     if (mostrarResultado && mounted) {
+      // Reemplaza cualquier SnackBar en cola (ej. el de "Conexión
+      // recuperada" aún visible) — el resultado de ESTE reintento puntual
+      // siempre debe mostrarse de inmediato, no quedar esperando turno.
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(resultado.mensaje),
@@ -241,6 +274,7 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
     // sonaba a éxito aunque en los hechos no se hubiera enviado ninguno.
     if (!await _connectivity.isOnline()) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Sigue sin conexión. Los borradores continúan pendientes.'),
@@ -267,6 +301,7 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
                 ? 'Se enviaron los $enviados borrador${enviados == 1 ? '' : 'es'} pendientes.'
                 : 'Se enviaron $enviados de ${pendientes.length} borradores.';
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensaje), backgroundColor: Colors.blueGrey),
     );

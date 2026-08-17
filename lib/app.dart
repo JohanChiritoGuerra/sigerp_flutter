@@ -251,6 +251,7 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
   final AbastecimientoDieselRepository _dieselRepository = AbastecimientoDieselRepository();
   StreamSubscription<bool>? _conexionSub;
   bool? _ultimoEstadoOnline;
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _reconexionSnackBarController;
   AuthService? _authService;
 
   @override
@@ -322,13 +323,17 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
 
     // El plugin de conectividad a veces reporta el reingreso a "online" en
     // varios pasos intermedios muy seguidos mientras la conexión real se
-    // estabiliza (ej. wifi reconectando) — cada uno dispara este método de
-    // nuevo, y como los SnackBar se ENCOLAN (no se reemplazan), sin esto
-    // terminaban apilándose varios avisos idénticos uno atrás de otro,
-    // dando la sensación de un aviso "pegado" que no se iba nunca. Al
-    // limpiar la cola antes de mostrar, nunca hay más de uno a la vez.
-    scaffoldMessengerKey.currentState?.clearSnackBars();
-    scaffoldMessengerKey.currentState?.showSnackBar(
+    // estabiliza (ej. wifi reconectando). Cada parpadeo reiniciaba el
+    // contador del SnackBar porque se volvía a limpiar y mostrar — la
+    // solución es mantener el controlador del SnackBar de reconexión y
+    // no crear uno nuevo mientras el anterior siga visible. Si otra
+    // acción quiere reemplazarlo (ej. el resultado de un reintento), esa
+    // acción sigue usando `clearSnackBars()` explícitamente.
+    final messenger = scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    if (_reconexionSnackBarController != null) return;
+
+    _reconexionSnackBarController = messenger.showSnackBar(
       SnackBar(
         content: Text(
           'Conexión recuperada. Tienes $pendientes borrador${pendientes == 1 ? '' : 'es'} de Diesel pendiente${pendientes == 1 ? '' : 's'}.',
@@ -344,6 +349,21 @@ class _AppLifecycleObserverState extends State<_AppLifecycleObserver> with Widge
         ),
       ),
     );
+    // Garantía adicional: si por alguna razón el `closed` no se completa
+    // (timer pausado o bug), forzamos el cierre pasado el tiempo esperado.
+    final controllerRef = _reconexionSnackBarController;
+    Future.delayed(const Duration(seconds: 9), () {
+      if (controllerRef != null && _reconexionSnackBarController == controllerRef) {
+        try {
+          controllerRef.close();
+        } catch (_) {
+          // ignore: no-op
+        }
+      }
+    });
+    _reconexionSnackBarController!.closed.then((_) {
+      _reconexionSnackBarController = null;
+    });
   }
 
   @override
