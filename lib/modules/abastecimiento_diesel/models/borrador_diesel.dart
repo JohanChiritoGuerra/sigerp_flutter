@@ -20,7 +20,14 @@ class BorradorDiesel {
   final String choferId;
   final String choferNombre;
   final double cantidad;
-  final int kilometraje;
+  // Fecha del abastecimiento elegida por el chofer (puede ser distinta al
+  // día en que el borrador realmente se crea/reintenta) — se reenvía tal
+  // cual en cada reintento, nunca se reemplaza por "hoy".
+  final DateTime fecha;
+  // Al menos uno de los dos debe venir con dato — nunca los dos null a la
+  // vez (ya se valida en el formulario antes de llegar acá).
+  final int? kilometraje;
+  final double? horometro;
   // Ruta de la copia PERMANENTE de la foto (ver FotoEvidenciaStorage) — no
   // la ruta temporal que entrega la cámara, que el sistema puede borrar.
   final String fotoPath;
@@ -43,7 +50,9 @@ class BorradorDiesel {
     required this.choferId,
     required this.choferNombre,
     required this.cantidad,
+    required this.fecha,
     required this.kilometraje,
+    required this.horometro,
     required this.fotoPath,
     required this.creadoEn,
     required this.idempotencyKey,
@@ -61,7 +70,9 @@ class BorradorDiesel {
       'choferId': choferId,
       'choferNombre': choferNombre,
       'cantidad': cantidad,
+      'fecha': fecha.toIso8601String(),
       'kilometraje': kilometraje,
+      'horometro': horometro,
       'fotoPath': fotoPath,
       'creadoEn': creadoEn.toIso8601String(),
       'estado': estado.name,
@@ -80,7 +91,11 @@ class BorradorDiesel {
       choferId: map['choferId'] as String,
       choferNombre: (map['choferNombre'] as String?) ?? '',
       cantidad: (map['cantidad'] as num).toDouble(),
-      kilometraje: map['kilometraje'] as int,
+      // Borradores creados antes de esta migración no tienen 'fecha' guardada
+      // — caen a creadoEn (lo más parecido a "qué día se registró" que existía).
+      fecha: map['fecha'] != null ? DateTime.parse(map['fecha'] as String) : DateTime.parse(map['creadoEn'] as String),
+      kilometraje: map['kilometraje'] as int?,
+      horometro: (map['horometro'] as num?)?.toDouble(),
       fotoPath: map['fotoPath'] as String,
       creadoEn: DateTime.parse(map['creadoEn'] as String),
       estado: EstadoBorrador.values.firstWhere(

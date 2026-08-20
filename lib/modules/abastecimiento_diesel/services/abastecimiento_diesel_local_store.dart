@@ -17,9 +17,10 @@ class AbastecimientoDieselLocalStore {
   Future<void> reemplazarCentroCostos(String empresaId, List<CentroCosto> lista) async {
     final db = await _db.database;
     await db.transaction((txn) async {
-      await txn.delete('cache_centro_costo', where: 'empresaId = ?', whereArgs: [empresaId]);
+      final batch = txn.batch();
+      batch.delete('cache_centro_costo', where: 'empresaId = ?', whereArgs: [empresaId]);
       for (final c in lista) {
-        await txn.insert('cache_centro_costo', {
+        batch.insert('cache_centro_costo', {
           'empresaId': empresaId,
           'centroCosto': c.centroCosto,
           'cenCostDescripcion': c.cenCostDescripcion,
@@ -29,6 +30,10 @@ class AbastecimientoDieselLocalStore {
           'displayText': c.displayText,
         });
       }
+      // noResult: true — no necesitamos los ids/counts de cada insert, y
+      // pedirlos obliga al plugin a mandar la respuesta de cada operación
+      // de vuelta una por una, perdiendo la ganancia de agruparlas.
+      await batch.commit(noResult: true);
     });
   }
 
@@ -64,7 +69,13 @@ class AbastecimientoDieselLocalStore {
   Future<void> reemplazarChoferes(String empresaId, List<Chofer> lista) async {
     final db = await _db.database;
     await db.transaction((txn) async {
-      await txn.delete('cache_chofer', where: 'empresaId = ?', whereArgs: [empresaId]);
+      // Batch en vez de insertar una por una: son +9,000 filas, y cada
+      // insert es un viaje de ida y vuelta al motor nativo — hacerlo uno
+      // por uno mantenía la transacción (y el candado de escritura de
+      // TODA la base local, compartida con borradores/historial/etc.)
+      // abierta varios segundos ("database has been locked for...").
+      final batch = txn.batch();
+      batch.delete('cache_chofer', where: 'empresaId = ?', whereArgs: [empresaId]);
       for (final c in lista) {
         // El SP de sincronización masiva ya no manda displayText (se quitó
         // por ser redundante y pesar en las +9,000 filas) — se arma acá con
@@ -72,7 +83,7 @@ class AbastecimientoDieselLocalStore {
         final displayText = c.displayText.isNotEmpty
             ? c.displayText
             : '${c.trabId} - ${c.trabApePat} ${c.trabApeMat} ${c.trabNombres}'.trim();
-        await txn.insert('cache_chofer', {
+        batch.insert('cache_chofer', {
           'empresaId': empresaId,
           'trabId': c.trabId,
           'trabApePat': c.trabApePat,
@@ -81,6 +92,7 @@ class AbastecimientoDieselLocalStore {
           'displayText': displayText,
         });
       }
+      await batch.commit(noResult: true);
     });
   }
 
@@ -112,9 +124,10 @@ class AbastecimientoDieselLocalStore {
   Future<void> reemplazarJefaturas(String empresaId, List<Jefatura> lista) async {
     final db = await _db.database;
     await db.transaction((txn) async {
-      await txn.delete('cache_jefatura', where: 'empresaId = ?', whereArgs: [empresaId]);
+      final batch = txn.batch();
+      batch.delete('cache_jefatura', where: 'empresaId = ?', whereArgs: [empresaId]);
       for (final j in lista) {
-        await txn.insert(
+        batch.insert(
           'cache_jefatura',
           {
             'empresaId': empresaId,
@@ -129,6 +142,7 @@ class AbastecimientoDieselLocalStore {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
+      await batch.commit(noResult: true);
     });
   }
 
@@ -177,13 +191,14 @@ class AbastecimientoDieselLocalStore {
     final desde = DateTime(anio, mes, 1);
     final hasta = DateTime(anio, mes + 1, 1);
     await db.transaction((txn) async {
-      await txn.delete(
+      final batch = txn.batch();
+      batch.delete(
         'cache_salida_diesel',
         where: 'empresaId = ? AND usuaId = ? AND anulado = ? AND fecha >= ? AND fecha < ?',
         whereArgs: [empresaId, usuaId, anulado ? 1 : 0, desde.toIso8601String(), hasta.toIso8601String()],
       );
       for (final item in lista) {
-        await txn.insert('cache_salida_diesel', {
+        batch.insert('cache_salida_diesel', {
           'empresaId': empresaId,
           'usuaId': usuaId,
           'salMatCabId': item.salMatCabId,
@@ -199,10 +214,12 @@ class AbastecimientoDieselLocalStore {
           'precioUnitario': item.precioUnitario,
           'total': item.total,
           'kilometraje': item.kilometraje,
+          'horometro': item.horometro,
           'tieneFoto': item.tieneFoto ? 1 : 0,
           'anulado': anulado ? 1 : 0,
         });
       }
+      await batch.commit(noResult: true);
     });
   }
 
@@ -237,7 +254,8 @@ class AbastecimientoDieselLocalStore {
               unidadMedida: r['unidadMedida'] as String? ?? '',
               precioUnitario: (r['precioUnitario'] as num?)?.toDouble() ?? 0,
               total: (r['total'] as num?)?.toDouble() ?? 0,
-              kilometraje: r['kilometraje'] as int? ?? 0,
+              kilometraje: r['kilometraje'] as int?,
+              horometro: (r['horometro'] as num?)?.toDouble(),
               tieneFoto: (r['tieneFoto'] as int? ?? 0) == 1,
             ))
         .toList();

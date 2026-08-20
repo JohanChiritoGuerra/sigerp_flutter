@@ -38,7 +38,9 @@ class AbastecimientoDieselService {
     required String codigoCentroCosto,
     required String trabIdChofer,
     required double cantidad,
-    required int kilometraje,
+    required DateTime fecha,
+    required int? kilometraje,
+    required double? horometro,
     required String empresaId,
     required File foto,
     required String idempotencyKey,
@@ -49,7 +51,15 @@ class AbastecimientoDieselService {
         'codigoCentroCosto': codigoCentroCosto,
         'trabIdChofer': trabIdChofer,
         'cantidad': cantidad.toString(),
-        'kilometraje': kilometraje.toString(),
+        // Formato yyyy-MM-dd (sin hora): inequívoco para el model binder de
+        // ASP.NET sin importar la configuración regional del servidor —
+        // acá solo importa el día, la hora la sigue poniendo el backend.
+        'fecha': fecha.toIso8601String().split('T').first,
+        // Solo se manda el campo si tiene valor — [FromForm] int?/decimal? en
+        // el backend queda en null cuando el campo ni siquiera viene en el
+        // request, que es justo lo que significa "ese switch no está activo".
+        if (kilometraje != null) 'kilometraje': kilometraje.toString(),
+        if (horometro != null) 'horometro': horometro.toString(),
         'empresaId': empresaId,
         'idempotencyKey': idempotencyKey,
       },
@@ -140,6 +150,26 @@ class AbastecimientoDieselService {
       queryParams: {'empresaId': empresaId},
     );
     return bytes;
+  }
+
+  // Manda el Parte de Salida directo a la impresora de red del almacén —
+  // el servidor (no el celular) es quien le habla a la impresora, así que
+  // funciona igual con wifi o datos móviles. Sin vista previa: esto ya
+  // imprime, no hay nada que mostrar antes.
+  Future<AbastecimientoDieselResultado> imprimirDirecto({required int salMatCabId, required String empresaId}) async {
+    final response = await _apiService.post(
+      'api/AbastecimientoDiesel/ImprimirDirecto/$salMatCabId',
+      {},
+      queryParams: {'empresaId': empresaId},
+    );
+
+    final baseResponse = BaseResponse.fromJson(response['baseResponse'] ?? {});
+    return AbastecimientoDieselResultado(
+      exito: baseResponse.esExitoso,
+      mensaje: baseResponse.message ?? (baseResponse.esExitoso
+          ? 'Enviado a la impresora correctamente.'
+          : 'No se pudo imprimir.'),
+    );
   }
 
   Future<double?> obtenerStock({required String empresaId}) async {

@@ -7,7 +7,7 @@ import 'core/utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Configurar el entorno
   // Development y Production usan la misma API: apitrab.andahuasi.com
   AppConfig.setEnvironment(Environment.production); //development   production

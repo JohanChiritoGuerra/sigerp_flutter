@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/constants.dart';
 import '../models/abastecimiento_diesel_lista_item.dart';
+import '../utils/lectura_unidad.dart';
 
 class AbastecimientoDieselCard extends StatelessWidget {
   final AbastecimientoDieselListaItem item;
@@ -107,6 +108,7 @@ class AbastecimientoDieselCard extends StatelessWidget {
                       Divider(height: 1, thickness: 0.5, color: Colors.grey.shade100),
                       const SizedBox(height: 8),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey[400]),
                           const SizedBox(width: 4),
@@ -118,11 +120,23 @@ class AbastecimientoDieselCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Icon(Icons.speed_outlined, size: 13, color: Colors.grey[400]),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${item.kilometraje} km',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final (icono, texto) in lecturaEntradas(item.kilometraje, item.horometro))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(icono, size: 13, color: Colors.grey[400]),
+                                      const SizedBox(width: 3),
+                                      Text(texto, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),

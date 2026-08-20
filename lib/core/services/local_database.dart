@@ -12,7 +12,7 @@ class LocalDatabase {
   LocalDatabase._internal();
 
   static const _dbName = 'sigerp_local.db';
-  static const _dbVersion = 6;
+  static const _dbVersion = 8;
 
   Database? _database;
 
@@ -43,7 +43,7 @@ class LocalDatabase {
       await db.execute(_sqlCacheChofer);
     }
     if (oldVersion < 4) {
-      await db.execute(_sqlBorradorDiesel);
+      await db.execute(_sqlBorradorDieselV4);
     }
     if (oldVersion < 5) {
       // Distingue partes normales ('Mis salidas') de partes ANULADOS (pestaña
@@ -55,6 +55,35 @@ class LocalDatabase {
       // Clave de idempotencia por borrador (ver AbastecimientoDieselRepository)
       // — borradores ya existentes quedan con '' (se tratan como sin clave).
       await db.execute("ALTER TABLE borrador_diesel ADD COLUMN idempotencyKey TEXT NOT NULL DEFAULT ''");
+    }
+    if (oldVersion < 7) {
+      // kilometraje pasa a ser opcional (antes NOT NULL) y se suma horometro
+      // — ahora un borrador puede traer uno de los dos, o ambos (ver Km/Horómetro
+      // en AbastecimientoDieselRepository). SQLite no permite quitarle el NOT
+      // NULL a una columna existente con un simple ALTER, así que se recrea la
+      // tabla preservando los datos.
+      await db.execute('ALTER TABLE borrador_diesel RENAME TO borrador_diesel_old');
+      await db.execute(_sqlBorradorDieselV7);
+      await db.execute('''
+        INSERT INTO borrador_diesel
+          (id, empresaId, usuaId, centroCosto, centroCostoDescripcion, choferId, choferNombre,
+           cantidad, kilometraje, horometro, fotoPath, creadoEn, estado, motivoError, idempotencyKey)
+        SELECT id, empresaId, usuaId, centroCosto, centroCostoDescripcion, choferId, choferNombre,
+               cantidad, kilometraje, NULL, fotoPath, creadoEn, estado, motivoError, idempotencyKey
+        FROM borrador_diesel_old
+      ''');
+      await db.execute('DROP TABLE borrador_diesel_old');
+
+      // cache_salida_diesel.kilometraje ya era nullable — acá solo se suma
+      // la columna nueva (ALTER simple, sin el problema del NOT NULL de arriba).
+      await db.execute('ALTER TABLE cache_salida_diesel ADD COLUMN horometro REAL');
+    }
+    if (oldVersion < 8) {
+      // Fecha del abastecimiento elegida por el chofer (antes el campo del
+      // formulario era de solo lectura y ni se guardaba) — nullable, sin el
+      // problema de la v7: los borradores existentes caen a creadoEn en
+      // BorradorDiesel.fromMap si esta columna viene vacía.
+      await db.execute('ALTER TABLE borrador_diesel ADD COLUMN fecha TEXT');
     }
   }
 
@@ -105,11 +134,11 @@ class LocalDatabase {
     )
   ''';
 
-  // Outbox de borradores: registros que no se pudieron enviar por falta de
-  // conexión, esperando reintento manual (o el aviso de reconexión).
-  // fotoPath apunta a la copia PERMANENTE de la foto (ver
-  // FotoEvidenciaStorage) — no a la ruta temporal que entrega la cámara.
-  static const _sqlBorradorDiesel = '''
+  // Esquema histórico tal como quedó en la versión 4 (con el ALTER de
+  // idempotencyKey de la versión 6 encima) — se usa SOLO para reproducir la
+  // migración de un dispositivo que viene de una versión muy vieja. No
+  // tocar: representa un punto fijo en el tiempo, no el esquema actual.
+  static const _sqlBorradorDieselV4 = '''
     CREATE TABLE borrador_diesel (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       empresaId TEXT NOT NULL,
@@ -120,6 +149,58 @@ class LocalDatabase {
       choferNombre TEXT,
       cantidad REAL NOT NULL,
       kilometraje INTEGER NOT NULL,
+      fotoPath TEXT NOT NULL,
+      creadoEn TEXT NOT NULL,
+      estado TEXT NOT NULL,
+      motivoError TEXT,
+      idempotencyKey TEXT NOT NULL DEFAULT ''
+    )
+  ''';
+
+  // Esquema histórico tal como quedó en la versión 7 (kilometraje/horometro
+  // ya nullable, pero SIN fecha todavía) — se usa SOLO para reproducir la
+  // migración de un dispositivo que viene de antes de la v7. No tocar:
+  // representa un punto fijo en el tiempo, no el esquema actual.
+  static const _sqlBorradorDieselV7 = '''
+    CREATE TABLE borrador_diesel (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      empresaId TEXT NOT NULL,
+      usuaId TEXT NOT NULL,
+      centroCosto TEXT NOT NULL,
+      centroCostoDescripcion TEXT,
+      choferId TEXT NOT NULL,
+      choferNombre TEXT,
+      cantidad REAL NOT NULL,
+      kilometraje INTEGER,
+      horometro REAL,
+      fotoPath TEXT NOT NULL,
+      creadoEn TEXT NOT NULL,
+      estado TEXT NOT NULL,
+      motivoError TEXT,
+      idempotencyKey TEXT NOT NULL DEFAULT ''
+    )
+  ''';
+
+  // Outbox de borradores: registros que no se pudieron enviar por falta de
+  // conexión, esperando reintento manual (o el aviso de reconexión).
+  // fotoPath apunta a la copia PERMANENTE de la foto (ver
+  // FotoEvidenciaStorage) — no a la ruta temporal que entrega la cámara.
+  // Esquema ACTUAL (v8): kilometraje/horometro son ambos opcionales, pero
+  // nunca los dos a la vez null — eso ya lo valida la app antes de guardar.
+  // fecha: la fecha del abastecimiento elegida por el chofer.
+  static const _sqlBorradorDiesel = '''
+    CREATE TABLE borrador_diesel (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      empresaId TEXT NOT NULL,
+      usuaId TEXT NOT NULL,
+      centroCosto TEXT NOT NULL,
+      centroCostoDescripcion TEXT,
+      choferId TEXT NOT NULL,
+      choferNombre TEXT,
+      cantidad REAL NOT NULL,
+      fecha TEXT,
+      kilometraje INTEGER,
+      horometro REAL,
       fotoPath TEXT NOT NULL,
       creadoEn TEXT NOT NULL,
       estado TEXT NOT NULL,
@@ -150,6 +231,7 @@ class LocalDatabase {
         precioUnitario REAL,
         total REAL,
         kilometraje INTEGER,
+        horometro REAL,
         tieneFoto INTEGER,
         anulado INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (empresaId, usuaId, salMatCabId)

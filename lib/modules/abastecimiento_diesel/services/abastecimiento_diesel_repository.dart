@@ -179,6 +179,16 @@ class AbastecimientoDieselRepository {
     return _api.obtenerPdfParte(salMatCabId: salMatCabId, empresaId: empresaId);
   }
 
+  // Imprime directo en la impresora de red del almacén — el celular solo
+  // necesita alcanzar la API (como para cualquier otra acción), la API es
+  // quien le habla a la impresora.
+  Future<AbastecimientoDieselResultado> imprimirDirecto({required int salMatCabId, required String empresaId}) async {
+    if (!await _connectivity.isOnline()) {
+      return AbastecimientoDieselResultado(exito: false, mensaje: 'Sin conexión. Intenta cuando tengas señal.');
+    }
+    return _api.imprimirDirecto(salMatCabId: salMatCabId, empresaId: empresaId);
+  }
+
   // ---------- Centro de Costo ----------
 
   // No cachea acá directamente — el catálogo completo solo se guarda desde
@@ -236,7 +246,9 @@ class AbastecimientoDieselRepository {
     required CentroCosto centroCosto,
     required Chofer chofer,
     required double cantidad,
-    required int kilometraje,
+    required DateTime fecha,
+    required int? kilometraje,
+    required double? horometro,
     required File foto,
   }) async {
     // Se genera una sola vez acá, en el primer intento — si termina cayendo
@@ -250,7 +262,9 @@ class AbastecimientoDieselRepository {
         centroCosto: centroCosto,
         chofer: chofer,
         cantidad: cantidad,
+        fecha: fecha,
         kilometraje: kilometraje,
+        horometro: horometro,
         foto: foto,
         idempotencyKey: idempotencyKey,
       );
@@ -261,7 +275,9 @@ class AbastecimientoDieselRepository {
       codigoCentroCosto: centroCosto.centroCosto,
       trabIdChofer: chofer.trabId,
       cantidad: cantidad,
+      fecha: fecha,
       kilometraje: kilometraje,
+      horometro: horometro,
       empresaId: empresaId,
       foto: foto,
       idempotencyKey: idempotencyKey,
@@ -276,7 +292,9 @@ class AbastecimientoDieselRepository {
         centroCosto: centroCosto,
         chofer: chofer,
         cantidad: cantidad,
+        fecha: fecha,
         kilometraje: kilometraje,
+        horometro: horometro,
         foto: foto,
         idempotencyKey: idempotencyKey,
       );
@@ -304,7 +322,9 @@ class AbastecimientoDieselRepository {
     required CentroCosto centroCosto,
     required Chofer chofer,
     required double cantidad,
-    required int kilometraje,
+    required DateTime fecha,
+    required int? kilometraje,
+    required double? horometro,
     required File foto,
     required String idempotencyKey,
     required String motivo,
@@ -315,7 +335,9 @@ class AbastecimientoDieselRepository {
       centroCosto: centroCosto,
       chofer: chofer,
       cantidad: cantidad,
+      fecha: fecha,
       kilometraje: kilometraje,
+      horometro: horometro,
       foto: foto,
       idempotencyKey: idempotencyKey,
       estado: EstadoBorrador.esperandoStock,
@@ -329,7 +351,9 @@ class AbastecimientoDieselRepository {
     required CentroCosto centroCosto,
     required Chofer chofer,
     required double cantidad,
-    required int kilometraje,
+    required DateTime fecha,
+    required int? kilometraje,
+    required double? horometro,
     required File foto,
     required String idempotencyKey,
     EstadoBorrador estado = EstadoBorrador.pendiente,
@@ -352,7 +376,9 @@ class AbastecimientoDieselRepository {
       choferId: chofer.trabId,
       choferNombre: chofer.displayText,
       cantidad: cantidad,
+      fecha: fecha,
       kilometraje: kilometraje,
+      horometro: horometro,
       fotoPath: fotoPermanente,
       creadoEn: DateTime.now(),
       idempotencyKey: idempotencyKey,
@@ -380,7 +406,9 @@ class AbastecimientoDieselRepository {
       codigoCentroCosto: borrador.centroCosto,
       trabIdChofer: borrador.choferId,
       cantidad: borrador.cantidad,
+      fecha: borrador.fecha,
       kilometraje: borrador.kilometraje,
+      horometro: borrador.horometro,
       empresaId: borrador.empresaId,
       foto: fotoArchivo,
       // Se reutiliza la MISMA clave del intento original — así el backend

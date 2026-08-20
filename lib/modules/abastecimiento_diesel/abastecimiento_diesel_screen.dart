@@ -285,7 +285,14 @@ class _AbastecimientoDieselScreenState extends State<AbastecimientoDieselScreen>
     }
 
     await _cargarBorradores();
-    final pendientes = _borradores.where((b) => b.estado == EstadoBorrador.pendiente).toList();
+    // Incluye esperandoStock además de pendiente: ya lo tratamos como
+    // "reintentable sin más" (el stock se repone solo con el tiempo, no
+    // hace falta que el usuario revise nada antes de volver a intentar) —
+    // a diferencia de error, que sí necesita que el usuario revise el
+    // motivo antes de reintentar, así que ese se deja fuera del lote.
+    final pendientes = _borradores
+        .where((b) => b.estado == EstadoBorrador.pendiente || b.estado == EstadoBorrador.esperandoStock)
+        .toList();
     var enviados = 0;
     for (final b in pendientes) {
       final resultado = await _reintentarBorrador(b, mostrarResultado: false);

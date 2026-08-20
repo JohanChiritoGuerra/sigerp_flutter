@@ -98,18 +98,25 @@ class ApiService {
   Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> body, {
+    Map<String, dynamic>? queryParams,
     bool retry = true,
     bool skipAuthRetry = false,
+    int? timeoutSeconds,
   }) async {
     try {
       final client = _createClient();
-      final url = Uri.parse('${AppConstants.apiBaseUrl}$endpoint');
+      Uri url = Uri.parse('${AppConstants.apiBaseUrl}$endpoint');
+      if (queryParams != null) {
+        url = url.replace(
+          queryParameters: queryParams.map((key, value) => MapEntry(key, value.toString())),
+        );
+      }
       final response = await client
           .post(url, headers: _headers(), body: jsonEncode(body))
-          .timeout(Duration(seconds: AppConstants.connectionTimeout));
+          .timeout(Duration(seconds: timeoutSeconds ?? AppConstants.connectionTimeout));
       return await _processResponse(
         response,
-        () => post(endpoint, body, retry: false),
+        () => post(endpoint, body, queryParams: queryParams, retry: false, timeoutSeconds: timeoutSeconds),
         retry,
         skipAuthRetry: skipAuthRetry,
       );

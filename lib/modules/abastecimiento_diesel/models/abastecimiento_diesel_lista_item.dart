@@ -11,7 +11,8 @@ class AbastecimientoDieselListaItem {
   final String unidadMedida;
   final double precioUnitario;
   final double total;
-  final int kilometraje;
+  final int? kilometraje;
+  final double? horometro;
   final bool tieneFoto;
 
   AbastecimientoDieselListaItem({
@@ -28,6 +29,7 @@ class AbastecimientoDieselListaItem {
     required this.precioUnitario,
     required this.total,
     required this.kilometraje,
+    required this.horometro,
     required this.tieneFoto,
   });
 
@@ -45,7 +47,8 @@ class AbastecimientoDieselListaItem {
       unidadMedida: (json['unidadMedida'] as String?)?.trim() ?? '',
       precioUnitario: (json['precioUnitario'] as num?)?.toDouble() ?? 0,
       total: (json['total'] as num?)?.toDouble() ?? 0,
-      kilometraje: json['kilometraje'] as int? ?? 0,
+      kilometraje: json['kilometraje'] as int?,
+      horometro: (json['horometro'] as num?)?.toDouble(),
       tieneFoto: json['tieneFoto'] as bool? ?? false,
     );
   }

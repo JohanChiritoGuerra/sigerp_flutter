@@ -96,10 +96,22 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
   // Perú no usa horario de verano: UTC-5 todo el año. Se calcula desde UTC
   // en vez de usar la hora local del dispositivo, porque esta puede venir
   // mal configurada (ej. equipos con zona horaria UTC en vez de America/Lima).
-  final DateTime _fecha = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+  // Ya no es de solo lectura: el chofer puede elegir otro día (ej. un
+  // abastecimiento de ayer que se le pasó registrar) — el backend valida que
+  // no sea una fecha futura y que el período no esté cerrado.
+  DateTime _fecha = DateTime.now().toUtc().subtract(const Duration(hours: 5));
 
   final TextEditingController _cantidadController = TextEditingController();
   final TextEditingController _kilometrajeController = TextEditingController();
+  final TextEditingController _horometroController = TextEditingController();
+
+  // Independientes, no excluyentes — hay unidades que solo tienen
+  // kilometraje (vehículos de carretera), otras solo horómetro (maquinaria/
+  // equipo estacionario), y algunas ambos (ej. un camión con grúa
+  // hidráulica). Al menos uno de los dos tiene que quedar activo para poder
+  // guardar.
+  bool _usaKilometraje = false;
+  bool _usaHorometro = false;
 
   CentroCosto? _centroCosto;
   Jefatura? _jefatura;
@@ -138,6 +150,7 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
   void dispose() {
     _cantidadController.dispose();
     _kilometrajeController.dispose();
+    _horometroController.dispose();
     super.dispose();
   }
 
@@ -202,6 +215,52 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
       _jefatura = jefatura;
       _cargandoJefatura = false;
     });
+  }
+
+  Future<void> _seleccionarFecha() async {
+    final elegida = await showDatePicker(
+      context: context,
+      initialDate: _fecha,
+      // No se puede elegir una fecha futura (mismo límite que valida el
+      // backend). Hacia atrás se deja un rango amplio a propósito — el
+      // límite real lo pone el cierre contable/de kardex del período, que
+      // el backend igual revalida al guardar.
+      firstDate: DateTime(_fecha.year - 1),
+      lastDate: DateTime.now(),
+      helpText: 'Fecha del abastecimiento',
+      cancelText: 'Cancelar',
+      confirmText: 'Elegir',
+    );
+    if (elegida == null || !mounted) return;
+    setState(() => _fecha = elegida);
+  }
+
+  Widget _campoTocable({
+    required IconData icon,
+    required Widget child,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[350]!),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.grey[600]),
+            const SizedBox(width: 10),
+            Expanded(child: child),
+            Icon(Icons.edit_calendar_outlined, size: 16, color: Color(AppColors.primaryColor)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _campoSoloLectura({
@@ -271,6 +330,50 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
     );
   }
 
+  // Encabezado tipo switch para Kilometraje/Horómetro: el campo numérico
+  // solo aparece cuando el switch está activo — así el chofer solo llena lo
+  // que su unidad realmente tiene.
+  Widget _buildSwitchLectura({
+    required String titulo,
+    required String subtitulo,
+    required bool activo,
+    required ValueChanged<bool> onChanged,
+    required Widget campo,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: activo ? Color(AppColors.primaryColor).withValues(alpha: 0.06) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: activo ? Color(AppColors.primaryColor).withValues(alpha: 0.25) : Colors.grey[300]!),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(titulo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                    Text(subtitulo, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+              Switch(value: activo, onChanged: onChanged, activeColor: Color(AppColors.primaryColor)),
+            ],
+          ),
+        ),
+        if (activo) ...[
+          const SizedBox(height: 10),
+          campo,
+        ],
+      ],
+    );
+  }
+
   String _formatStock(double valor) {
     final partes = valor.toStringAsFixed(2).split('.');
     final entero = partes[0];
@@ -309,6 +412,42 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
     return null;
   }
 
+  // Si el switch está activo, 0 (o vacío) NO es un valor válido — igual que
+  // Cantidad, se marca en rojo y bloquea Guardar. El switch apagado no
+  // muestra error (no hay nada que validar, ese campo ni se manda).
+  String? _errorKilometraje(String texto) {
+    if (!_usaKilometraje) return null;
+    final limpio = texto.trim().replaceAll(',', '');
+    if (limpio.isEmpty) return null;
+    final valor = int.tryParse(limpio);
+    if (valor == null || valor <= 0) return 'El kilometraje debe ser mayor a 0';
+    return null;
+  }
+
+  String? _errorHorometro(String texto) {
+    if (!_usaHorometro) return null;
+    final limpio = texto.trim().replaceAll(',', '');
+    if (limpio.isEmpty) return null;
+    final valor = double.tryParse(limpio);
+    if (valor == null || valor <= 0) return 'El horómetro debe ser mayor a 0';
+    return null;
+  }
+
+  // "Listo" ahora significa: el switch está activo Y tiene un valor real
+  // (> 0), no solo "no vacío" — antes dejaba pasar un 0 con el switch
+  // prendido, que terminaba guardándose como si esa lectura no aplicara.
+  bool get _kilometrajeListo {
+    if (!_usaKilometraje) return false;
+    final valor = int.tryParse(_kilometrajeController.text.trim().replaceAll(',', ''));
+    return valor != null && valor > 0;
+  }
+
+  bool get _horometroListo {
+    if (!_usaHorometro) return false;
+    final valor = double.tryParse(_horometroController.text.trim().replaceAll(',', ''));
+    return valor != null && valor > 0;
+  }
+
   bool get _puedeGuardar {
     if (_guardando) return false;
     // La Jefatura es solo informativa (el backend la vuelve a resolver a
@@ -319,7 +458,12 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
     if (_centroCosto == null || _chofer == null || _foto == null) return false;
     if (_errorCantidad(_cantidadController.text) != null) return false;
     if (_cantidadController.text.trim().isEmpty) return false;
-    if (_kilometrajeController.text.trim().isEmpty) return false;
+    // Al menos un switch activo, y cada switch activo con un valor válido —
+    // no alcanza con que UNO de los dos esté bien si el otro está prendido
+    // pero en 0/vacío.
+    if (!_usaKilometraje && !_usaHorometro) return false;
+    if (_usaKilometraje && !_kilometrajeListo) return false;
+    if (_usaHorometro && !_horometroListo) return false;
     return true;
   }
 
@@ -329,8 +473,11 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
     final usuaId = authService.usuario?.usuaId ?? '';
 
     final cantidad = double.tryParse(_cantidadController.text.replaceAll(',', ''));
-    final kilometraje = int.tryParse(_kilometrajeController.text.replaceAll(',', ''));
-    if (cantidad == null || kilometraje == null) return;
+    final kilometraje = _kilometrajeListo ? int.tryParse(_kilometrajeController.text.replaceAll(',', '')) : null;
+    final horometro = _horometroListo ? double.tryParse(_horometroController.text.replaceAll(',', '')) : null;
+    if (cantidad == null) return;
+    if (_kilometrajeListo && kilometraje == null) return;
+    if (_horometroListo && horometro == null) return;
 
     setState(() => _guardando = true);
 
@@ -340,7 +487,9 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
       centroCosto: _centroCosto!,
       chofer: _chofer!,
       cantidad: cantidad,
+      fecha: _fecha,
       kilometraje: kilometraje,
+      horometro: horometro,
       foto: _foto!,
     );
 
@@ -376,7 +525,9 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
               centroCosto: _centroCosto!,
               chofer: _chofer!,
               cantidad: cantidad,
+              fecha: _fecha,
               kilometraje: kilometraje,
+              horometro: horometro,
               foto: _foto!,
               idempotencyKey: resultado.idempotencyKey!,
               motivo: resultado.mensaje,
@@ -486,8 +637,9 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
             const SizedBox(height: 6),
-            _campoSoloLectura(
+            _campoTocable(
               icon: Icons.calendar_today_outlined,
+              onTap: _seleccionarFecha,
               child: Text(_formatFecha(_fecha), style: const TextStyle(fontSize: 14)),
             ),
             const SizedBox(height: 20),
@@ -555,17 +707,57 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
             ),
             const SizedBox(height: 20),
 
-            _campoNumerico(
-              label: 'Kilometraje',
-              controller: _kilometrajeController,
-              icon: Icons.speed_outlined,
-              hint: '0',
-              suffixText: 'km',
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(_kMaxDigitosKilometraje),
-                _MilesSeparadorFormatter(),
-              ],
+            // Independientes, no excluyentes: una unidad puede tener
+            // kilometraje, horómetro, o los dos — ver nota en _usaKilometraje.
+            _buildSwitchLectura(
+              titulo: 'Kilometraje',
+              subtitulo: 'Vehículos de carretera',
+              activo: _usaKilometraje,
+              onChanged: (v) => setState(() => _usaKilometraje = v),
+              campo: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _kilometrajeController,
+                builder: (context, value, _) {
+                  return _campoNumerico(
+                    label: 'Kilometraje',
+                    controller: _kilometrajeController,
+                    icon: Icons.speed_outlined,
+                    hint: '0',
+                    suffixText: 'km',
+                    errorText: _errorKilometraje(value.text),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(_kMaxDigitosKilometraje),
+                      _MilesSeparadorFormatter(),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            _buildSwitchLectura(
+              titulo: 'Horómetro',
+              subtitulo: 'Maquinaria / equipo estacionario',
+              activo: _usaHorometro,
+              onChanged: (v) => setState(() => _usaHorometro = v),
+              campo: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _horometroController,
+                builder: (context, value, _) {
+                  return _campoNumerico(
+                    label: 'Horómetro',
+                    controller: _horometroController,
+                    icon: Icons.timelapse_outlined,
+                    hint: '0.0',
+                    suffixText: 'hrs',
+                    permiteDecimales: true,
+                    errorText: _errorHorometro(value.text),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}')),
+                      LengthLimitingTextInputFormatter(_kMaxDigitosKilometraje + 2),
+                    ],
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -581,7 +773,7 @@ class _AbastecimientoDieselFormScreenState extends State<AbastecimientoDieselFor
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: AnimatedBuilder(
-            animation: Listenable.merge([_cantidadController, _kilometrajeController]),
+            animation: Listenable.merge([_cantidadController, _kilometrajeController, _horometroController]),
             builder: (context, _) {
               return Row(
                 children: [

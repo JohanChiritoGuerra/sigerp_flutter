@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import '../../../core/utils/constants.dart';
 import '../models/abastecimiento_diesel_lista_item.dart';
 import '../services/abastecimiento_diesel_repository.dart';
@@ -58,63 +59,29 @@ class _AbastecimientoDieselDetalleModalState extends State<AbastecimientoDieselD
     return '${buffer.toString()}.${partes[1]}';
   }
 
-  // Directo a la impresora de red del almacén, sin vista previa — la API
-  // (no el celular) es quien le habla a la impresora, así que funciona
-  // igual con wifi o datos móviles. La versión anterior con vista previa
-  // nativa queda guardada en abastecimiento_diesel_detalle_modal.v_preview.dart.bak.
+  // Por ahora abre la vista previa nativa de impresión (siempre lista las
+  // impresoras disponibles en el dispositivo) — el envío directo, sin vista
+  // previa, a una impresora de red configurada es un paso posterior.
   Future<void> _imprimir(BuildContext context) async {
     setState(() => _imprimiendo = true);
 
-    final resultado = await _repository.imprimirDirecto(salMatCabId: widget.item.salMatCabId, empresaId: widget.empresaId);
+    final pdf = await _repository.obtenerPdfParte(salMatCabId: widget.item.salMatCabId, empresaId: widget.empresaId);
 
     if (!mounted) return;
     setState(() => _imprimiendo = false);
 
-    // Un SnackBar acá quedaría tapado detrás de este mismo modal (el
-    // DraggableScrollableSheet ocupa hasta el 95% de la pantalla, justo
-    // donde el SnackBar intenta aparecer) — un diálogo sí se renderiza por
-    // encima, sin pelear por esa capa.
-    if (!context.mounted) return;
-    final colorResultado = resultado.exito ? Colors.green : Colors.red;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                resultado.exito ? Icons.check_circle : Icons.error_outline,
-                color: colorResultado,
-                size: 44,
-              ),
-              const SizedBox(height: 14),
-              Text(
-                resultado.mensaje,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500, height: 1.3),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: TextButton.styleFrom(
-                    backgroundColor: colorResultado.withValues(alpha: 0.1),
-                    foregroundColor: colorResultado.withValues(alpha: 0.85),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
+    if (pdf == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el documento. Verifica tu conexión e intenta de nuevo.'),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
+      );
+      return;
+    }
+
+    final numero = widget.item.numeroDocumento.isNotEmpty ? widget.item.numeroDocumento : '${widget.item.salMatCabId}';
+    await Printing.layoutPdf(onLayout: (_) async => pdf, name: 'ParteSalida_$numero.pdf');
   }
 
   void _verFotoCompleta(BuildContext context, Uint8List bytes) {
